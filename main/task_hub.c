@@ -237,7 +237,7 @@ static void task_hub_I2S_process()
                 }
 
                 stereo_codec_I2S_write(data, item_size, portMAX_DELAY);
-                vRingbufferReturnItem(s_ringbuf_i2s, (void *)data);
+                vRingbufferReturnItem(s_ringbuf_i2s, data);
             }
         }
     }

@@ -65,7 +65,7 @@ static void avrcp_control_callback(esp_avrc_ct_cb_event_t event, esp_avrc_ct_cb_
             break;
         }
         default:
-            ESP_LOGE(LOG_BT_AVRCP, "Invalid AVRC event: %d", event);
+            ESP_LOGE(LOG_BT_AVRCP, "%s unhandled event: %d", __func__, event);
             break;
     }
 }
@@ -88,8 +88,8 @@ static void avrcp_control_event(uint16_t event, void *p_param)
     /* when connection state changed, this event comes */
     case ESP_AVRC_CT_CONNECTION_STATE_EVT: {
         uint8_t *bda = rc->conn_stat.remote_bda;
-        ESP_LOGI(LOG_BT_AVRCP, "AVRC conn_state event: state %d, [%02x:%02x:%02x:%02x:%02x:%02x]",
-                 rc->conn_stat.connected, bda[0], bda[1], bda[2], bda[3], bda[4], bda[5]);
+        ESP_LOGI(LOG_BT_AVRCP, "connection state: %d, [%02x:%02x:%02x:%02x:%02x:%02x]",
+                    rc->conn_stat.connected, bda[0], bda[1], bda[2], bda[3], bda[4], bda[5]);
 
         if (rc->conn_stat.connected) {
             /* get remote supported event_ids of peer AVRCP Target */
@@ -102,7 +102,7 @@ static void avrcp_control_event(uint16_t event, void *p_param)
     }
     /* when passthrough responsed, this event comes */
     case ESP_AVRC_CT_PASSTHROUGH_RSP_EVT: {
-        ESP_LOGI(LOG_BT_AVRCP, "AVRC passthrough rsp: key_code 0x%x, key_state %d, rsp_code %d", rc->psth_rsp.key_code,
+        ESP_LOGI(LOG_BT_AVRCP, "passthrough responsed: key_code 0x%x, key_state %d, rsp_code %d", rc->psth_rsp.key_code,
                     rc->psth_rsp.key_state, rc->psth_rsp.rsp_code);
         break;
     }
@@ -124,19 +124,19 @@ static void avrcp_control_event(uint16_t event, void *p_param)
     }
     /* when notified, this event comes */
     case ESP_AVRC_CT_CHANGE_NOTIFY_EVT: {
-        ESP_LOGI(LOG_BT_AVRCP, "AVRC event notification: %d", rc->change_ntf.event_id);
+        ESP_LOGI(LOG_BT_AVRCP, "event notification: %d", rc->change_ntf.event_id);
         avrcp_notify_event_handler(rc->change_ntf.event_id, &rc->change_ntf.event_parameter);
         break;
     }
     /* when feature of remote device indicated, this event comes */
     case ESP_AVRC_CT_REMOTE_FEATURES_EVT: {
-        ESP_LOGI(LOG_BT_AVRCP, "AVRC remote features %"PRIx32", TG features %x", rc->rmt_feats.feat_mask, rc->rmt_feats.tg_feat_flag);
+        ESP_LOGI(LOG_BT_AVRCP, "remote features 0x%lX, TG features 0x%X", rc->rmt_feats.feat_mask, rc->rmt_feats.tg_feat_flag);
         break;
     }
     /* when notification capability of peer device got, this event comes */
     case ESP_AVRC_CT_GET_RN_CAPABILITIES_RSP_EVT: {
-        ESP_LOGI(LOG_BT_AVRCP, "remote rn_cap: count %d, bitmask 0x%x", rc->get_rn_caps_rsp.cap_count,
-                 rc->get_rn_caps_rsp.evt_set.bits);
+        ESP_LOGI(LOG_BT_AVRCP, "remote rn_cap: count %d, bitmask 0x%X", rc->get_rn_caps_rsp.cap_count,
+                    rc->get_rn_caps_rsp.evt_set.bits);
         s_avrc_peer_rn_cap.bits = rc->get_rn_caps_rsp.evt_set.bits;
         avrcp_new_track_loaded();
         avrcp_playback_status_changed();
@@ -168,7 +168,7 @@ static void avrcp_notify_event_handler(uint8_t event_id, esp_avrc_rn_param_t *ev
         break;
     /* when track playing position changed, this event comes */
     case ESP_AVRC_RN_PLAY_POS_CHANGED:
-        ESP_LOGI(LOG_BT_AVRCP, "Play position changed: %"PRIu32"-ms", event_parameter->play_pos);
+        ESP_LOGI(LOG_BT_AVRCP, "Play position changed: %lu-ms", event_parameter->play_pos);
         avrcp_play_pos_changed();
         break;
     /* others */
@@ -189,9 +189,9 @@ static void avrcp_new_track_loaded(void)
 
     /* register notification if peer support the event_id */
     if (esp_avrc_rn_evt_bit_mask_operation(ESP_AVRC_BIT_MASK_OP_TEST, &s_avrc_peer_rn_cap,
-                                           ESP_AVRC_RN_TRACK_CHANGE)) {
+                                            ESP_AVRC_RN_TRACK_CHANGE)) {
         esp_avrc_ct_send_register_notification_cmd(APP_RC_CT_TL_RN_TRACK_CHANGE,
-                                                   ESP_AVRC_RN_TRACK_CHANGE, 0);
+                                                    ESP_AVRC_RN_TRACK_CHANGE, 0);
     }
 }
 
@@ -199,9 +199,9 @@ static void avrcp_playback_status_changed(void)
 {
     /* register notification if peer support the event_id */
     if (esp_avrc_rn_evt_bit_mask_operation(ESP_AVRC_BIT_MASK_OP_TEST, &s_avrc_peer_rn_cap,
-                                           ESP_AVRC_RN_PLAY_STATUS_CHANGE)) {
+                                            ESP_AVRC_RN_PLAY_STATUS_CHANGE)) {
         esp_avrc_ct_send_register_notification_cmd(APP_RC_CT_TL_RN_PLAYBACK_CHANGE,
-                                                   ESP_AVRC_RN_PLAY_STATUS_CHANGE, 0);
+                                                    ESP_AVRC_RN_PLAY_STATUS_CHANGE, 0);
     }
 }
 
@@ -209,9 +209,9 @@ static void avrcp_play_pos_changed(void)
 {
     /* register notification if peer support the event_id */
     if (esp_avrc_rn_evt_bit_mask_operation(ESP_AVRC_BIT_MASK_OP_TEST, &s_avrc_peer_rn_cap,
-                                           ESP_AVRC_RN_PLAY_POS_CHANGED)) {
+                                            ESP_AVRC_RN_PLAY_POS_CHANGED)) {
         esp_avrc_ct_send_register_notification_cmd(APP_RC_CT_TL_RN_PLAY_POS_CHANGE,
-                                                   ESP_AVRC_RN_PLAY_POS_CHANGED, 10);
+                                                    ESP_AVRC_RN_PLAY_POS_CHANGED, 10);
     }
 }
 
@@ -247,7 +247,7 @@ static void avrcp_target_event(uint16_t event, void *p_param)
         }
         /* when passthrough commanded, this event comes */
         case ESP_AVRC_TG_PASSTHROUGH_CMD_EVT: {
-            ESP_LOGI(LOG_BT_AVRCP, "AVRC passthrough cmd: key_code 0x%x, key_state %d", rc->psth_cmd.key_code, rc->psth_cmd.key_state);
+            ESP_LOGI(LOG_BT_AVRCP, "AVRC passthrough cmd: key_code 0x%X, key_state %d", rc->psth_cmd.key_code, rc->psth_cmd.key_state);
             break;
         }
         /* when absolute volume command from remote device set, this event comes */
@@ -268,7 +268,7 @@ static void avrcp_target_event(uint16_t event, void *p_param)
         }
         /* when feature of remote device indicated, this event comes */
         case ESP_AVRC_TG_REMOTE_FEATURES_EVT: {
-            ESP_LOGI(LOG_BT_AVRCP, "AVRC remote features: %"PRIx32", CT features: %x", rc->rmt_feats.feat_mask, rc->rmt_feats.ct_feat_flag);
+            ESP_LOGI(LOG_BT_AVRCP, "AVRC remote features: %lX, CT features: %X", rc->rmt_feats.feat_mask, rc->rmt_feats.ct_feat_flag);
             break;
         }
         /* others */

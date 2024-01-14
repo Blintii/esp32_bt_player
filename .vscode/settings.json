@@ -37,7 +37,15 @@
     "btc_manage.h": "c",
     "esp_bt_device.h": "c",
     "random": "c",
-    "esp_a2dp_api.h": "c"
+    "esp_a2dp_api.h": "c",
+    "bta_av_sbc.h": "c",
+    "a2d_sbc.h": "c",
+    "a2d_api.h": "c",
+    "sdp_api.h": "c",
+    "bt_defs.h": "c",
+    "bta_av_int.h": "c",
+    "bt_target.h": "c",
+    "a2d_int.h": "c"
   },
   "idf.adapterTargetName": "esp32",
   "idf.portWin": "COM15"

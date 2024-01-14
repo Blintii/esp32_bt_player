@@ -31,8 +31,8 @@ void stereo_codec_set_volume(uint8_t vol)
 static void setup_I2C()
 {
     const i2c_config_t i2c_cfg = {
-        .sda_io_num = I2C_SDA_PIN,
-        .scl_io_num = I2C_SCL_PIN,
+        .sda_io_num = PIN_I2C_SDA,
+        .scl_io_num = PIN_I2C_SCL,
         .mode = I2C_MODE_MASTER,
         /* on waveshare WM8960 audio board there are 10k pullup resistors */
         .sda_pullup_en = GPIO_PULLUP_DISABLE,

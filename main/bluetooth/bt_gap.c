@@ -33,7 +33,7 @@ void bt_gap_init()
     ESP_ERROR_CHECK(ledc_timer_config(&ledc_cfg));
 
     ledc_channel_config_t ledc_ch_cfg = {
-        .gpio_num = LED_BLUE,
+        .gpio_num = PIN_LED_BLUE,
         .speed_mode = LEDC_LOW_SPEED_MODE,
         .channel = LEDC_CHANNEL_0,
         .intr_type = LEDC_INTR_DISABLE,

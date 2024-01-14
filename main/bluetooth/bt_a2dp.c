@@ -30,6 +30,10 @@ static esp_a2d_audio_state_t s_audio_state = ESP_A2D_AUDIO_STATE_STOPPED;
 
 void bt_a2dp_init()
 {
+    /* in file: \esp\esp-idf\components\bt\host\bluedroid\btc\profile\std\a2dp\bta_av_co.c
+     * in row 84: removed not supported 48kHz sample freq
+     * in row 85: removed not supported mono mode
+     */
     ESP_ERROR_CHECK(esp_a2d_sink_init());
     esp_a2d_register_callback(&a2dp_callback);
     esp_a2d_sink_register_data_callback(a2dp_data_callback);
@@ -52,7 +56,7 @@ static void a2dp_callback(esp_a2d_cb_event_t event, esp_a2d_cb_param_t *param)
         break;
     }
     default:
-        ESP_LOGE(LOG_BT_A2DP, "Invalid A2DP event: %d", event);
+        ESP_LOGE(LOG_BT_A2DP, "%s unhandled event: %d", __func__, event);
         break;
     }
 }
@@ -64,7 +68,7 @@ static void a2dp_data_callback(const uint8_t *data, uint32_t len)
     /* log the number every 100 packets */
     if(++s_pkt_cnt % 100 == 0)
     {
-        ESP_LOGI(LOG_BT_A2DP, "Audio packet count: %"PRIu32, s_pkt_cnt);
+        ESP_LOGI(LOG_BT_A2DP, "audio packet count: %"PRIu32, s_pkt_cnt);
     }
 }
 
@@ -79,7 +83,7 @@ static void a2dp_event(uint16_t event, void *p_param)
         {
             a2d = (esp_a2d_cb_param_t *)(p_param);
             uint8_t *bda = a2d->conn_stat.remote_bda;
-            ESP_LOGI(LOG_BT_A2DP, "A2DP connection state: %s, [%02x:%02x:%02x:%02x:%02x:%02x]",
+            ESP_LOGI(LOG_BT_A2DP, "connection state: %s, [%02x:%02x:%02x:%02x:%02x:%02x]",
                 s_a2d_conn_state_str[a2d->conn_stat.state], bda[0], bda[1], bda[2], bda[3], bda[4], bda[5]);
             
             if(a2d->conn_stat.state == ESP_A2D_CONNECTION_STATE_DISCONNECTED)
@@ -101,7 +105,7 @@ static void a2dp_event(uint16_t event, void *p_param)
         /* when audio stream transmission state changed, this event comes */
         case ESP_A2D_AUDIO_STATE_EVT: {
             a2d = (esp_a2d_cb_param_t *)(p_param);
-            ESP_LOGI(LOG_BT_A2DP, "A2DP audio state: %s", s_a2d_audio_state_str[a2d->audio_stat.state]);
+            ESP_LOGI(LOG_BT_A2DP, "transmission stream state: %s", s_a2d_audio_state_str[a2d->audio_stat.state]);
             s_audio_state = a2d->audio_stat.state;
             if (ESP_A2D_AUDIO_STATE_STARTED == a2d->audio_stat.state) {
                 s_pkt_cnt = 0;
@@ -114,7 +118,7 @@ static void a2dp_event(uint16_t event, void *p_param)
             /* for now only SBC stream is supported */
             if(a2d->audio_cfg.mcc.type == ESP_A2D_MCT_SBC)
             {
-                ESP_LOGI(LOG_BT_A2DP, "A2DP audio stream configuration: SBC codec");
+                ESP_LOGI(LOG_BT_A2DP, "incoming audio stream codec: SBC");
                 int sample_rate = 16000;
                 char oct0 = a2d->audio_cfg.mcc.cie.sbc[0];
 
@@ -122,9 +126,9 @@ static void a2dp_event(uint16_t event, void *p_param)
                 else if(oct0 & (0x01 << 5)) sample_rate = 44100;
                 else if(oct0 & (0x01 << 4)) sample_rate = 48000;
 
-                if(oct0 & (0x01 << 3)) ESP_LOGE(LOG_BT_A2DP, "Mono mode NOT SUPPORTED");
+                if(oct0 & (0x01 << 3)) ESP_LOGE(LOG_BT_A2DP, "NOT SUPPORTED channel mode: mono");
 
-                ESP_LOGI(LOG_BT_A2DP, "Configure SBC codec: %x-%x-%x-%x",
+                ESP_LOGI(LOG_BT_A2DP, "configure SBC codec: %x-%x-%x-%x",
                                     a2d->audio_cfg.mcc.cie.sbc[0],
                                     a2d->audio_cfg.mcc.cie.sbc[1],
                                     a2d->audio_cfg.mcc.cie.sbc[2],
@@ -132,12 +136,12 @@ static void a2dp_event(uint16_t event, void *p_param)
                 
                 if(sample_rate != 44100)
                 {
-                    ESP_LOGE(LOG_BT_A2DP, "NOT SUPPORTED sample rate configured: %d", sample_rate);
+                    ESP_LOGE(LOG_BT_A2DP, "NOT SUPPORTED sample rate: %d", sample_rate);
                 }
             }
             else
             {
-                ESP_LOGE(LOG_BT_A2DP, "A2DP audio stream configuration, NOT SUPPORTED codec type: %d", a2d->audio_cfg.mcc.type);
+                ESP_LOGE(LOG_BT_A2DP, "NOT SUPPORTED incoming audio stream codec: %d", a2d->audio_cfg.mcc.type);
             }
 
             break;
@@ -146,9 +150,9 @@ static void a2dp_event(uint16_t event, void *p_param)
         case ESP_A2D_PROF_STATE_EVT: {
             a2d = (esp_a2d_cb_param_t *)(p_param);
             if (ESP_A2D_INIT_SUCCESS == a2d->a2d_prof_stat.init_state) {
-                ESP_LOGI(LOG_BT_A2DP, "A2DP PROF STATE: Init Complete");
+                ESP_LOGI(LOG_BT_A2DP, "PROF STATE: Init Complete");
             } else {
-                ESP_LOGI(LOG_BT_A2DP, "A2DP PROF STATE: Deinit Complete");
+                ESP_LOGI(LOG_BT_A2DP, "PROF STATE: Deinit Complete");
             }
             break;
         }

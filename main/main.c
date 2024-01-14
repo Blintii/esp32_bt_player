@@ -19,7 +19,7 @@
 
 void app_main(void)
 {
-    ESP_LOGI("APP", ">>>>>>>>>>>>>>>>>>>  START  <<<<<<<<<<<<<<<<<<<");
+    ESP_LOGI(LOG_MAIN, ">>>>>>>>>>>>>>>>>>>  START  <<<<<<<<<<<<<<<<<<<");
 
     /* initialize NVS — it is used to store PHY calibration data */
     esp_err_t err = nvs_flash_init();
@@ -70,6 +70,5 @@ void app_main(void)
     bt_a2dp_init();
     bt_gap_show();
 
-    /* run main application */
-    // task_hub_bt_app_process();
+    ESP_LOGI(LOG_MAIN, "exit the main entry point");
 }
