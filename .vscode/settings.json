@@ -36,7 +36,8 @@
     "ringbuf.h": "c",
     "btc_manage.h": "c",
     "esp_bt_device.h": "c",
-    "random": "c"
+    "random": "c",
+    "esp_a2dp_api.h": "c"
   },
   "idf.adapterTargetName": "esp32",
   "idf.portWin": "COM15"

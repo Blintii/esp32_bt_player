@@ -14,10 +14,11 @@
 
 
 void stereo_codec_control_init();
+void stereo_codec_set_volume(uint8_t vol);
+
 void stereo_codec_I2S_start();
 void stereo_codec_I2S_stop();
 void stereo_codec_I2S_write(const void *src, size_t size, uint32_t timeout_ms);
-void stereo_codec_set_volume(uint8_t vol);
 
 
 #endif /* __STEREO_CODEC_H__ */
