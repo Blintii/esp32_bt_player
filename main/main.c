@@ -34,7 +34,7 @@ void app_main(void)
 
     /* init audio peripheral */
     stereo_codec_control_init();
-    
+
     /* classic bluetooth used only
        so release the controller memory for Bluetooth Low Energy */
     ESP_ERROR_CHECK(esp_bt_controller_mem_release(ESP_BT_MODE_BLE));
@@ -57,10 +57,10 @@ void app_main(void)
         ESP_LOGE(LOG_MAIN, "%s enable bluedroid failed: %s\n", __func__, esp_err_to_name(err));
         return;
     }
-    
+
     /* init bluetooth device */
     esp_bt_dev_set_device_name(BT_DEVICE_NAME);
-    
+
     /* init application tasks */
     task_hub_tasks_create();
 

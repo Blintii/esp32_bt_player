@@ -88,7 +88,7 @@ static void avrcp_control_event(uint16_t event, void *p_param)
     /* when connection state changed, this event comes */
     case ESP_AVRC_CT_CONNECTION_STATE_EVT: {
         uint8_t *bda = rc->conn_stat.remote_bda;
-        ESP_LOGI(LOG_BT_AVRCP, "connection state: %d, [%02x:%02x:%02x:%02x:%02x:%02x]",
+        ESP_LOGI(LOG_BT_AVRCP, "CT connection state: %d, [%02x:%02x:%02x:%02x:%02x:%02x]",
                     rc->conn_stat.connected, bda[0], bda[1], bda[2], bda[3], bda[4], bda[5]);
 
         if (rc->conn_stat.connected) {
@@ -227,7 +227,7 @@ static void avrcp_target_callback(esp_avrc_tg_cb_event_t event, esp_avrc_tg_cb_p
         task_hub_bt_app_work_dispatch(avrcp_target_event, event, param, sizeof(esp_avrc_tg_cb_param_t));
         break;
     default:
-        ESP_LOGE(LOG_BT_AVRCP, "Invalid AVRC event: %d", event);
+        ESP_LOGE(LOG_BT_AVRCP, "%s unhandled event: %d", __func__, event);
         break;
     }
 }
@@ -241,24 +241,24 @@ static void avrcp_target_event(uint16_t event, void *p_param)
         /* when connection state changed, this event comes */
         case ESP_AVRC_TG_CONNECTION_STATE_EVT: {
             uint8_t *bda = rc->conn_stat.remote_bda;
-            ESP_LOGI(LOG_BT_AVRCP, "AVRC conn_state evt: state %d, [%02x:%02x:%02x:%02x:%02x:%02x]",
+            ESP_LOGI(LOG_BT_AVRCP, "TG connection state: %d, [%02x:%02x:%02x:%02x:%02x:%02x]",
                     rc->conn_stat.connected, bda[0], bda[1], bda[2], bda[3], bda[4], bda[5]);
             break;
         }
         /* when passthrough commanded, this event comes */
         case ESP_AVRC_TG_PASSTHROUGH_CMD_EVT: {
-            ESP_LOGI(LOG_BT_AVRCP, "AVRC passthrough cmd: key_code 0x%X, key_state %d", rc->psth_cmd.key_code, rc->psth_cmd.key_state);
+            ESP_LOGI(LOG_BT_AVRCP, "passthrough cmd: key_code 0x%X, key_state %d", rc->psth_cmd.key_code, rc->psth_cmd.key_state);
             break;
         }
         /* when absolute volume command from remote device set, this event comes */
         case ESP_AVRC_TG_SET_ABSOLUTE_VOLUME_CMD_EVT: {
-            ESP_LOGI(LOG_BT_AVRCP, "AVRC set absolute volume: %d%%", (int)rc->set_abs_vol.volume * 100 / 0x7f);
+            ESP_LOGI(LOG_BT_AVRCP, "set absolute volume: %d%%", (int)rc->set_abs_vol.volume * 100 / 0x7f);
             volume_set_by_controller(rc->set_abs_vol.volume);
             break;
         }
         /* when notification registered, this event comes */
         case ESP_AVRC_TG_REGISTER_NOTIFICATION_EVT: {
-            ESP_LOGI(LOG_BT_AVRCP, "AVRC register event notification: %d, param: 0x%"PRIx32, rc->reg_ntf.event_id, rc->reg_ntf.event_parameter);
+            ESP_LOGI(LOG_BT_AVRCP, "register event notification: %d, param: 0x%"PRIx32, rc->reg_ntf.event_id, rc->reg_ntf.event_parameter);
             if (rc->reg_ntf.event_id == ESP_AVRC_RN_VOLUME_CHANGE) {
                 esp_avrc_rn_param_t rn_param;
                 rn_param.volume = s_volume;
@@ -268,7 +268,7 @@ static void avrcp_target_event(uint16_t event, void *p_param)
         }
         /* when feature of remote device indicated, this event comes */
         case ESP_AVRC_TG_REMOTE_FEATURES_EVT: {
-            ESP_LOGI(LOG_BT_AVRCP, "AVRC remote features: %lX, CT features: %X", rc->rmt_feats.feat_mask, rc->rmt_feats.ct_feat_flag);
+            ESP_LOGI(LOG_BT_AVRCP, "remote features: %lX, CT features: %X", rc->rmt_feats.feat_mask, rc->rmt_feats.ct_feat_flag);
             break;
         }
         /* others */
