@@ -629,7 +629,6 @@
  *        |                 | 31h        | frequency ratio (treat as one 24-digit binary
  *        |                 |            | number)
  */
-
 #define R53_PLL_2 53
 
 /*

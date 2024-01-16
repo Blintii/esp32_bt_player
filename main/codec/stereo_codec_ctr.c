@@ -79,11 +79,20 @@ static esp_err_t set_reg(uint8_t reg, uint16_t data)
 
 static esp_err_t config_WM8960()
 {
+    /* used for reduce pops when change output enable/disable mode */
+    set_reg(R28_AntiPop_1, BIT_ON(7) | BIT_ON(4) | BIT_ON(3) | BIT_ON(2));
+    set_reg(R25_PowerManagment_1, 0); // turn OFF mode
+    set_reg(R29_AntiPop_2,
+            BIT_ON(6)           // enable discharge headphone capacitors
+            | BIT_SH(4, 0b11)); // 150Ω used
+
+    /* waiting for capacitors discharging, to avoid pop */
+    vTaskDelay(pdMS_TO_TICKS(1000));
+
     ESP_RETURN_ON_ERROR(set_reg(R15_Reset, 0), LOG_STEREO_CODEC, "reset device failed");
 
-    set_reg(R25_PowerManagment_1,
-            BIT_SH(7, 0b11) // fast start-up
-            | BIT_ON(6));   // VREF on
+    /* used for reduce pops when change output enable/disable mode */
+    set_reg(R28_AntiPop_1, BIT_ON(7) | BIT_ON(4) | BIT_ON(3) | BIT_ON(2));
 
     set_reg(R7_AudioInterface_1, 2); // 16 bits audio data word len, I2S Format
 
@@ -92,20 +101,14 @@ static esp_err_t config_WM8960()
             | BIT_ON(4) // MCLK / 2 --> PLL (24MHz / 2 = 12MHz)
             | 7);       // PLLN = 7
 
-    set_reg(R53_PLL_2, 0x86); // the values are from a clocking table in WM8960 datasheet
+    /* the values are from a clocking table in WM8960 datasheet */
+    set_reg(R53_PLL_2, 0x86);
     set_reg(R54_PLL_3, 0xC2);
     set_reg(R55_PLL_4, 0x26);
 
     set_reg(R4_Clocking_1,
             BIT_SH(1, 0b10) // SYSCLK / 2
             | 1);           // PLL clock selected
-
-    set_reg(R34_LeftOutMix,
-            BIT_ON(8)               // route left DAC to output
-            | BIT_SH(4, 0b111));    // reduce LINPUT3 vol
-    set_reg(R37_RightOutMix,
-            BIT_ON(8)               // route right DAC to output
-            | BIT_SH(4, 0b111));    // reduce RINPUT3 vol
 
     set_reg(R45_LeftBypass, BIT_SH(4, 0b111)); // reduce Left Input Boost Mixer vol
     set_reg(R46_RightBypass, BIT_SH(4, 0b111)); // reduce Right Input Boost Mixer vol
@@ -122,8 +125,16 @@ static esp_err_t config_WM8960()
 
     set_reg(R5_ADCAndDACControl_1, 0); // unmute DAC
 
-    // set_reg(R28_AntiPop_1, BIT_ON(4) | BIT_ON(3) | BIT_ON(2));
-    // set_reg(R29_AntiPop_2, BIT_ON(6));
+    set_reg(R47_PowerManagement_3,
+            BIT_ON(3)       // LOMIX on
+            | BIT_ON(2));   // ROMIX on
+
+    set_reg(R34_LeftOutMix,
+            BIT_ON(8)               // route left DAC to output
+            | BIT_SH(4, 0b111));    // reduce LINPUT3 vol
+    set_reg(R37_RightOutMix,
+            BIT_ON(8)               // route right DAC to output
+            | BIT_SH(4, 0b111));    // reduce RINPUT3 vol
 
     set_reg(R26_PowerManagment_2,
             BIT_ON(8)   // DAC L
@@ -131,12 +142,9 @@ static esp_err_t config_WM8960()
             | BIT_ON(6) // HP L
             | BIT_ON(5) // HP R
             | 1);       // PLL on
-    set_reg(R47_PowerManagement_3,
-            BIT_ON(3)       // LOMIX on
-            | BIT_ON(2));   // ROMIX on
 
-    // vTaskDelay(pdMS_TO_TICKS(666));
-    // set_reg(R28_AntiPop_1, 0);
-    // set_reg(R29_AntiPop_2, 0);
+    set_reg(R25_PowerManagment_1,
+            BIT_SH(7, 0b01) // playback
+            | BIT_ON(6));   // VREF on
     return ESP_OK;
 }
