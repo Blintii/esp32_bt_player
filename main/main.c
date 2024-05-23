@@ -32,9 +32,6 @@ void app_main(void)
 
     ESP_ERROR_CHECK(err);
 
-    /* init audio peripheral */
-    stereo_codec_control_init();
-
     /* classic bluetooth used only
        so release the controller memory for Bluetooth Low Energy */
     ESP_ERROR_CHECK(esp_bt_controller_mem_release(ESP_BT_MODE_BLE));
@@ -42,24 +39,30 @@ void app_main(void)
     esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
 
     if ((err = esp_bt_controller_init(&bt_cfg)) != ESP_OK) {
-        ESP_LOGE(LOG_MAIN, "%s initialize controller failed: %s\n", __func__, esp_err_to_name(err));
+        ESP_LOGE(LOG_MAIN, "%s initialize controller failed: %s", __func__, esp_err_to_name(err));
         return;
     }
     if ((err = esp_bt_controller_enable(ESP_BT_MODE_CLASSIC_BT)) != ESP_OK) {
-        ESP_LOGE(LOG_MAIN, "%s enable controller failed: %s\n", __func__, esp_err_to_name(err));
+        ESP_LOGE(LOG_MAIN, "%s enable controller failed: %s", __func__, esp_err_to_name(err));
         return;
     }
-    if ((err = esp_bluedroid_init()) != ESP_OK) {
-        ESP_LOGE(LOG_MAIN, "%s initialize bluedroid failed: %s\n", __func__, esp_err_to_name(err));
+
+    esp_bluedroid_config_t bluedroid_cfg = BT_BLUEDROID_INIT_CONFIG_DEFAULT();
+
+    if ((err = esp_bluedroid_init_with_cfg(&bluedroid_cfg)) != ESP_OK) {
+        ESP_LOGE(LOG_MAIN, "%s initialize bluedroid failed: %s", __func__, esp_err_to_name(err));
         return;
     }
     if ((err = esp_bluedroid_enable()) != ESP_OK) {
-        ESP_LOGE(LOG_MAIN, "%s enable bluedroid failed: %s\n", __func__, esp_err_to_name(err));
+        ESP_LOGE(LOG_MAIN, "%s enable bluedroid failed: %s", __func__, esp_err_to_name(err));
         return;
     }
 
     /* init bluetooth device */
     esp_bt_dev_set_device_name(BT_DEVICE_NAME);
+
+    /* init audio peripheral */
+    stereo_codec_control_init();
 
     /* init application tasks */
     task_hub_tasks_create();

@@ -21,7 +21,7 @@ static void a2dp_event(uint16_t event, void *p_param);
 /* connection state in string */
 static const char *s_a2d_conn_state_str[] = {"Disconnected", "Connecting", "Connected", "Disconnecting"};
 /* audio stream datapath state in string */
-static const char *s_a2d_audio_state_str[] = {"Suspended", "Stopped", "Started"};
+static const char *s_a2d_audio_state_str[] = {"Suspended", "Started"};
 /* count for audio packet */
 static uint32_t s_pkt_cnt = 0;
 /* audio stream datapath state */
@@ -85,12 +85,12 @@ static void a2dp_event(uint16_t event, void *p_param)
             uint8_t *bda = a2d->conn_stat.remote_bda;
             ESP_LOGI(LOG_BT_A2DP, "connection state: %s, [%02x:%02x:%02x:%02x:%02x:%02x]",
                 s_a2d_conn_state_str[a2d->conn_stat.state], bda[0], bda[1], bda[2], bda[3], bda[4], bda[5]);
-            
+
             if(a2d->conn_stat.state == ESP_A2D_CONNECTION_STATE_DISCONNECTED)
             {
                 bt_gap_show();
                 task_hub_I2S_del();
-            } 
+            }
             else if(a2d->conn_stat.state == ESP_A2D_CONNECTION_STATE_CONNECTED)
             {
                 bt_gap_hide();
@@ -133,7 +133,7 @@ static void a2dp_event(uint16_t event, void *p_param)
                                     a2d->audio_cfg.mcc.cie.sbc[1],
                                     a2d->audio_cfg.mcc.cie.sbc[2],
                                     a2d->audio_cfg.mcc.cie.sbc[3]);
-                
+
                 if(sample_rate != 44100)
                 {
                     ESP_LOGE(LOG_BT_A2DP, "NOT SUPPORTED sample rate: %d", sample_rate);

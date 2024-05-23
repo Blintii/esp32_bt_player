@@ -82,14 +82,21 @@ static void gap_callback(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *par
     switch(event)
     {
         /* when authentication completed, this event comes */
-        case ESP_BT_GAP_AUTH_CMPL_EVT:
-        {
+        case ESP_BT_GAP_AUTH_CMPL_EVT: {
             if (param->auth_cmpl.stat == ESP_BT_STATUS_SUCCESS) {
                 ESP_LOGI(LOG_BT_GAP, "authentication success: %s", param->auth_cmpl.device_name);
                 esp_log_buffer_hex(LOG_BT_GAP, param->auth_cmpl.bda, ESP_BD_ADDR_LEN);
             } else {
                 ESP_LOGE(LOG_BT_GAP, "authentication failed, status: %d", param->auth_cmpl.stat);
             }
+            ESP_LOGI(LOG_BT_GAP, "link key type of current link is: %d", param->auth_cmpl.lk_type);
+            break;
+        }
+        case ESP_BT_GAP_ENC_CHG_EVT: {
+            char *str_enc[3] = {"OFF", "E0", "AES"};
+            bda = (uint8_t *)param->enc_chg.bda;
+            ESP_LOGI(LOG_BT_GAP, "Encryption mode to [%02x:%02x:%02x:%02x:%02x:%02x] changed to %s",
+                    bda[0], bda[1], bda[2], bda[3], bda[4], bda[5], str_enc[param->enc_chg.enc_mode]);
             break;
         }
         /* when GAP mode changed, this event comes */

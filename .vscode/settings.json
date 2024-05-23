@@ -14,5 +14,8 @@
     ],
     "idf.portWin": "COM11",
     "idf.pythonBinPathWin": "C:\\Users\\Blinti\\.espressif\\python_env\\idf5.2_py3.11_env\\Scripts\\python.exe",
-    "idf.toolsPathWin": "C:\\Users\\Blinti\\.espressif"
+    "idf.toolsPathWin": "C:\\Users\\Blinti\\.espressif",
+    "files.associations": {
+        "random": "c"
+    }
 }
