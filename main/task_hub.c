@@ -27,6 +27,7 @@ enum {
 
 static bool bt_app_send_msg(bt_app_msg_t *msg);
 static void task_hub_I2S_process();
+static void task_hub_I2C_process();
 
 
 /* handle of I2S task */
@@ -36,7 +37,10 @@ static QueueHandle_t s_bt_app_task_queue = NULL;
 /* handle of ringbuffer for I2S */
 static RingbufHandle_t s_ringbuf_i2s = NULL;
 static SemaphoreHandle_t s_i2s_write_semaphore = NULL;
+static SemaphoreHandle_t s_i2c_semaphore = NULL;
 static uint16_t ringbuffer_mode = RINGBUFFER_MODE_INIT;
+
+static uint8_t last_vol = 0;
 
 
 bool task_hub_bt_app_work_dispatch(bt_app_cb_t p_cback, uint16_t event, void *p_params, int param_len)
@@ -76,7 +80,12 @@ static bool bt_app_send_msg(bt_app_msg_t *msg)
 void task_hub_tasks_create()
 {
     s_bt_app_task_queue = xQueueCreate(10, sizeof(bt_app_msg_t));
-    xTaskCreatePinnedToCore(task_hub_bt_app_process, "MainAppTask", 3500, NULL, 22, NULL, 1);
+    s_i2c_semaphore = xSemaphoreCreateBinary();
+
+    if(NULL == s_i2c_semaphore) ESP_LOGE(LOG_TASKS, "%s, I2C semaphore create failed", __func__);
+
+    xTaskCreatePinnedToCore(task_hub_bt_app_process, "MainAppTask", 4096, NULL, 22, NULL, 1);
+    xTaskCreatePinnedToCore(task_hub_I2C_process, "I2C", 3500, NULL, 24, NULL, 1);
     task_hub_I2S_buf_init();
 }
 
@@ -103,20 +112,20 @@ void task_hub_I2S_buf_init()
 
     if(NULL == s_i2s_write_semaphore)
     {
-        ESP_LOGE(LOG_TASKS, "%s, semaphore create failed", __func__);
+        ESP_LOGE(LOG_TASKS, "%s, I2S semaphore create failed", __func__);
         return;
     }
 
     s_ringbuf_i2s = xRingbufferCreate(RINGBUF_HIGHEST_WATER_LEVEL, RINGBUF_TYPE_BYTEBUF);
-    
+
     if(NULL == s_ringbuf_i2s)
     {
-        ESP_LOGE(LOG_TASKS, "%s, ringbuffer create failed", __func__);
+        ESP_LOGE(LOG_TASKS, "%s, I2S ringbuffer create failed", __func__);
         return;
     }
 
     ringbuffer_mode = RINGBUFFER_MODE_READY;
-    ESP_LOGI(LOG_TASKS, "ringbuffer ready!");
+    ESP_LOGI(LOG_TASKS, "I2S ringbuffer ready!");
 }
 
 void task_hub_I2S_create()
@@ -240,5 +249,34 @@ static void task_hub_I2S_process()
                 vRingbufferReturnItem(s_ringbuf_i2s, data);
             }
         }
+    }
+}
+
+static void task_hub_I2C_process()
+{
+    while(1)
+    {
+        ESP_LOGE(LOG_TASKS, "wait for taking I2C semaphore...");
+
+        if(pdTRUE == xSemaphoreTake(s_i2c_semaphore, portMAX_DELAY))
+        {
+            ESP_LOGE(LOG_TASKS, "took I2C semaphore");
+            uint8_t tmp = last_vol;
+            stereo_codec_set_volume(tmp);
+            ESP_LOGE(LOG_TASKS, "finish volume set: %d%%", (int)tmp * 100 / 0x7f);
+        }
+        else ESP_LOGE(LOG_TASKS, "failed to take I2C semaphore...");
+    }
+
+}
+
+void task_hub_set_volume(uint8_t vol)
+{
+    last_vol = vol;
+    ESP_LOGE(LOG_TASKS, "give I2C semaphore...");
+
+    if(pdFALSE == xSemaphoreGive(s_i2c_semaphore))
+    {
+        ESP_LOGE(LOG_TASKS, "semaphore give failed");
     }
 }

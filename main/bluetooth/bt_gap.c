@@ -15,9 +15,6 @@ static void gap_led_cfg(uint32_t clk_div, uint32_t duty);
 static void gap_callback(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param);
 
 
-static const char *mode_string[] = {"active", "hold", "sniff", "park"};
-
-
 void bt_gap_init()
 {
     ESP_ERROR_CHECK(esp_bt_gap_register_callback(gap_callback));
@@ -93,7 +90,7 @@ static void gap_callback(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *par
             break;
         }
         case ESP_BT_GAP_ENC_CHG_EVT: {
-            char *str_enc[3] = {"OFF", "E0", "AES"};
+            static const char *str_enc[3] = {"OFF", "E0", "AES"};
             bda = (uint8_t *)param->enc_chg.bda;
             ESP_LOGI(LOG_BT_GAP, "Encryption mode to [%02x:%02x:%02x:%02x:%02x:%02x] changed to %s",
                     bda[0], bda[1], bda[2], bda[3], bda[4], bda[5], str_enc[param->enc_chg.enc_mode]);
@@ -101,6 +98,7 @@ static void gap_callback(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *par
         }
         /* when GAP mode changed, this event comes */
         case ESP_BT_GAP_MODE_CHG_EVT:
+            static const char *mode_string[] = {"active", "hold", "sniff", "park"};
             ESP_LOGI(LOG_BT_GAP, "change mode: %s", mode_string[param->mode_chg.mode]);
             break;
         /* when ACL connection completed, this event comes */

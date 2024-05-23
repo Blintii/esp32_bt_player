@@ -18,10 +18,6 @@ static void a2dp_data_callback(const uint8_t *data, uint32_t len);
 static void a2dp_event(uint16_t event, void *p_param);
 
 
-/* connection state in string */
-static const char *s_a2d_conn_state_str[] = {"Disconnected", "Connecting", "Connected", "Disconnecting"};
-/* audio stream datapath state in string */
-static const char *s_a2d_audio_state_str[] = {"Suspended", "Started"};
 /* count for audio packet */
 static uint32_t s_pkt_cnt = 0;
 /* audio stream datapath state */
@@ -44,20 +40,21 @@ void bt_a2dp_init()
 
 static void a2dp_callback(esp_a2d_cb_event_t event, esp_a2d_cb_param_t *param)
 {
-    switch (event) {
-    case ESP_A2D_CONNECTION_STATE_EVT:
-    case ESP_A2D_AUDIO_STATE_EVT:
-    case ESP_A2D_AUDIO_CFG_EVT:
-    case ESP_A2D_PROF_STATE_EVT:
-    case ESP_A2D_SNK_PSC_CFG_EVT:
-    case ESP_A2D_SNK_SET_DELAY_VALUE_EVT:
-    case ESP_A2D_SNK_GET_DELAY_VALUE_EVT: {
-        task_hub_bt_app_work_dispatch(a2dp_event, event, param, sizeof(esp_a2d_cb_param_t));
-        break;
-    }
-    default:
-        ESP_LOGE(LOG_BT_A2DP, "%s unhandled event: %d", __func__, event);
-        break;
+    switch (event)
+    {
+        case ESP_A2D_CONNECTION_STATE_EVT:
+        case ESP_A2D_AUDIO_STATE_EVT:
+        case ESP_A2D_AUDIO_CFG_EVT:
+        case ESP_A2D_PROF_STATE_EVT:
+        case ESP_A2D_SNK_PSC_CFG_EVT:
+        case ESP_A2D_SNK_SET_DELAY_VALUE_EVT:
+        case ESP_A2D_SNK_GET_DELAY_VALUE_EVT: {
+            task_hub_bt_app_work_dispatch(a2dp_event, event, param, sizeof(esp_a2d_cb_param_t));
+            break;
+        }
+        default:
+            ESP_LOGE(LOG_BT_A2DP, "%s unhandled event: %d", __func__, event);
+            break;
     }
 }
 
@@ -79,8 +76,9 @@ static void a2dp_event(uint16_t event, void *p_param)
     switch(event)
     {
         /* when connection state changed, this event comes */
-        case ESP_A2D_CONNECTION_STATE_EVT:
-        {
+        case ESP_A2D_CONNECTION_STATE_EVT: {
+            /* connection state in string */
+            static const char *s_a2d_conn_state_str[] = {"Disconnected", "Connecting", "Connected", "Disconnecting"};
             a2d = (esp_a2d_cb_param_t *)(p_param);
             uint8_t *bda = a2d->conn_stat.remote_bda;
             ESP_LOGI(LOG_BT_A2DP, "connection state: %s, [%02x:%02x:%02x:%02x:%02x:%02x]",
@@ -104,6 +102,8 @@ static void a2dp_event(uint16_t event, void *p_param)
         }
         /* when audio stream transmission state changed, this event comes */
         case ESP_A2D_AUDIO_STATE_EVT: {
+            /* audio stream datapath state in string */
+            static const char *s_a2d_audio_state_str[] = {"Suspended", "Started"};
             a2d = (esp_a2d_cb_param_t *)(p_param);
             ESP_LOGI(LOG_BT_A2DP, "transmission stream state: %s", s_a2d_audio_state_str[a2d->audio_stat.state]);
             s_audio_state = a2d->audio_stat.state;
