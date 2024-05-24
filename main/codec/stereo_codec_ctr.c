@@ -26,8 +26,18 @@ void stereo_codec_control_init()
 
 void stereo_codec_set_volume(uint8_t vol)
 {
-    set_reg(0x02, vol & 0x7F);
-    set_reg(0x03, (vol & 0x7F) | 0x100);
+    uint8_t vol_i = 0;
+
+    if(vol < 127) vol_i = vol;
+    else vol_i = 127;
+
+    ESP_LOGW("HP", "%d: %d", vol_i, lut_out1vol[vol_i]);
+    ESP_LOGW("DAC", "%d: %d", vol_i, lut_dacvol[vol_i]);
+    set_reg(R2_LOUT1Volume, lut_out1vol[vol_i]); // set HP_L vol
+    set_reg(R3_ROUT1Volume, lut_out1vol[vol_i] | BIT_ON(8)); // set HP_R vol + vol update
+
+    // set_reg(R10_LeftDACVolume, lut_dacvol[vol_i]); // DAC vol
+    // set_reg(R11_RightDACVolume, lut_dacvol[vol_i] | BIT_ON(8)); // DAC vol, vol update
 }
 
 static void setup_I2C()
@@ -61,7 +71,9 @@ static esp_err_t set_reg(uint8_t reg, uint16_t data)
 
         if(res == ESP_OK)
         {
-            ESP_LOGI(LOG_STEREO_CODEC, "reg %02X set OK after %d try", reg, tryN);
+            if(tryN < 2) ESP_LOGI(LOG_STEREO_CODEC, "reg %02X set OK after %d try", reg, tryN);
+            else ESP_LOGW(LOG_STEREO_CODEC, "reg %02X set OK after %d try", reg, tryN);
+
             break;
         }
         else

@@ -71,7 +71,7 @@ static bool bt_app_send_msg(bt_app_msg_t *msg)
 
     /* send the message to work queue */
     if (xQueueSend(s_bt_app_task_queue, msg, pdMS_TO_TICKS(10)) != pdTRUE) {
-        ESP_LOGE(LOG_TASKS, "%s xQueue send failed", __func__);
+        ESP_LOGE(LOG_TASKS, "%s work xQueue send failed", __func__);
         return false;
     }
     return true;
@@ -80,12 +80,23 @@ static bool bt_app_send_msg(bt_app_msg_t *msg)
 void task_hub_tasks_create()
 {
     s_bt_app_task_queue = xQueueCreate(10, sizeof(bt_app_msg_t));
+
+    if(NULL == s_bt_app_task_queue)
+    {
+        ESP_LOGE(LOG_TASKS, "%s, work xQueue create failed", __func__);
+        return;
+    }
+
     s_i2c_semaphore = xSemaphoreCreateBinary();
 
-    if(NULL == s_i2c_semaphore) ESP_LOGE(LOG_TASKS, "%s, I2C semaphore create failed", __func__);
+    if(NULL == s_i2c_semaphore)
+    {
+        ESP_LOGE(LOG_TASKS, "%s, I2C semaphore create failed", __func__);
+        return;
+    }
 
     xTaskCreatePinnedToCore(task_hub_bt_app_process, "MainAppTask", 4096, NULL, 22, NULL, 1);
-    xTaskCreatePinnedToCore(task_hub_I2C_process, "I2C", 3500, NULL, 24, NULL, 1);
+    xTaskCreatePinnedToCore(task_hub_I2C_process, "I2C", 4096, NULL, 20, NULL, 1);
     task_hub_I2S_buf_init();
 }
 
@@ -107,7 +118,7 @@ void task_hub_bt_app_process()
 
 void task_hub_I2S_buf_init()
 {
-    ESP_LOGI(LOG_TASKS, "ringbuffer init...");
+    ESP_LOGI(LOG_TASKS, "I2S ringbuffer init...");
     s_i2s_write_semaphore = xSemaphoreCreateBinary();
 
     if(NULL == s_i2s_write_semaphore)
@@ -132,14 +143,14 @@ void task_hub_I2S_create()
 {
     if(ringbuffer_mode != RINGBUFFER_MODE_READY)
     {
-        ESP_LOGE(LOG_TASKS, "%s, ringbuffer not ready", __func__);
+        ESP_LOGE(LOG_TASKS, "%s, I2S ringbuffer not ready", __func__);
         return;
     }
 
     ESP_LOGI(LOG_TASKS, "ringbuffer data empty! mode changed: RINGBUFFER_MODE_PREFETCHING");
     ringbuffer_mode = RINGBUFFER_MODE_PREFETCHING;
 
-    xTaskCreatePinnedToCore(task_hub_I2S_process, "I2STask", 2048, NULL, 20, &s_bt_i2s_task_handle, 1);
+    xTaskCreatePinnedToCore(task_hub_I2S_process, "I2STask", 4096, NULL, 20, &s_bt_i2s_task_handle, 1);
 }
 
 void task_hub_I2S_del()
@@ -256,16 +267,14 @@ static void task_hub_I2C_process()
 {
     while(1)
     {
-        ESP_LOGE(LOG_TASKS, "wait for taking I2C semaphore...");
-
         if(pdTRUE == xSemaphoreTake(s_i2c_semaphore, portMAX_DELAY))
         {
-            ESP_LOGE(LOG_TASKS, "took I2C semaphore");
             uint8_t tmp = last_vol;
+            uint8_t tmp_in_percent = tmp * 100 / 0x7f;
+            ESP_LOGI(LOG_TASKS, "start volume set: %d%%", tmp_in_percent);
             stereo_codec_set_volume(tmp);
-            ESP_LOGE(LOG_TASKS, "finish volume set: %d%%", (int)tmp * 100 / 0x7f);
+            ESP_LOGI(LOG_TASKS, "end volume set: %d%%", tmp_in_percent);
         }
-        else ESP_LOGE(LOG_TASKS, "failed to take I2C semaphore...");
     }
 
 }
@@ -273,10 +282,9 @@ static void task_hub_I2C_process()
 void task_hub_set_volume(uint8_t vol)
 {
     last_vol = vol;
-    ESP_LOGE(LOG_TASKS, "give I2C semaphore...");
 
     if(pdFALSE == xSemaphoreGive(s_i2c_semaphore))
     {
-        ESP_LOGE(LOG_TASKS, "semaphore give failed");
+        ESP_LOGE(LOG_TASKS, "I2C semaphore give failed");
     }
 }

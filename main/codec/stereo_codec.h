@@ -21,4 +21,8 @@ void stereo_codec_I2S_stop();
 void stereo_codec_I2S_write(const void *src, size_t size, uint32_t timeout_ms);
 
 
+extern const uint8_t lut_out1vol[128];
+extern const uint8_t lut_dacvol[128];
+
+
 #endif /* __STEREO_CODEC_H__ */
