@@ -18,6 +18,8 @@ void stereo_codec_set_volume(uint8_t vol);
 
 void stereo_codec_I2S_start();
 void stereo_codec_I2S_stop();
+void stereo_codec_I2S_enable_channel();
+void stereo_codec_I2S_disable_channel();
 void stereo_codec_I2S_write(const void *src, size_t size, uint32_t timeout_ms);
 
 

@@ -19,7 +19,7 @@ void stereo_codec_I2S_start()
         .dma_frame_num = I2S_DMA_FRAME_N,
         .auto_clear = true
     };
-    
+
     ESP_ERROR_CHECK(i2s_new_channel(&chan_cfg, &tx_chan, NULL));
 
     i2s_std_config_t std_cfg = {
@@ -42,15 +42,14 @@ void stereo_codec_I2S_start()
             }
         }
     };
-    
+
     ESP_ERROR_CHECK(i2s_channel_init_std_mode(tx_chan, &std_cfg));
-    ESP_ERROR_CHECK(i2s_channel_enable(tx_chan));
 }
 
 void stereo_codec_I2S_stop()
 {
-    ESP_ERROR_CHECK(i2s_channel_disable(tx_chan));
-    ESP_ERROR_CHECK(i2s_del_channel(tx_chan));
+    i2s_channel_disable(tx_chan);
+    i2s_del_channel(tx_chan);
 }
 
 void stereo_codec_I2S_write(const void *src, size_t size, uint32_t timeout_ms)
@@ -59,4 +58,16 @@ void stereo_codec_I2S_write(const void *src, size_t size, uint32_t timeout_ms)
     {
         ESP_LOGE(LOG_STEREO_CODEC, "I2S channel write failed");
     }
+}
+
+void stereo_codec_I2S_enable_channel()
+{
+    ESP_LOGW(LOG_STEREO_CODEC, "I2S channel STARTED");
+    ESP_ERROR_CHECK(i2s_channel_enable(tx_chan));
+}
+
+void stereo_codec_I2S_disable_channel()
+{
+    ESP_LOGW(LOG_STEREO_CODEC, "I2S channel STOPPED");
+    ESP_ERROR_CHECK(i2s_channel_disable(tx_chan));
 }

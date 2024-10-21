@@ -1,5 +1,5 @@
 
-#include "driver/i2c.h"
+#include "driver/i2c_master.h"
 #include "esp_check.h"
 #include "freertos/FreeRTOS.h"
 
@@ -15,6 +15,11 @@
 static void setup_I2C();
 static esp_err_t set_reg(uint8_t reg, uint16_t data);
 static esp_err_t config_WM8960();
+
+
+static i2c_master_bus_handle_t bus_handle;
+static i2c_master_dev_handle_t dev_handle;
+
 
 void stereo_codec_control_init()
 {
@@ -42,18 +47,22 @@ void stereo_codec_set_volume(uint8_t vol)
 
 static void setup_I2C()
 {
-    const i2c_config_t i2c_cfg = {
-        .sda_io_num = PIN_I2C_SDA,
+    i2c_master_bus_config_t i2c_mst_config = {
+        .clk_source = I2C_CLK_SRC_DEFAULT,
+        .i2c_port = I2C_PERIPH_NUM,
         .scl_io_num = PIN_I2C_SCL,
-        .mode = I2C_MODE_MASTER,
+        .sda_io_num = PIN_I2C_SDA,
         /* on waveshare WM8960 audio board there are 10k pullup resistors */
-        .sda_pullup_en = GPIO_PULLUP_ENABLE,
-        .scl_pullup_en = GPIO_PULLUP_ENABLE,
-        .master.clk_speed = 420420,
+        .flags.enable_internal_pullup = true
     };
+    ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_mst_config, &bus_handle));
 
-    ESP_ERROR_CHECK(i2c_param_config(I2C_PERIPH_NUM, &i2c_cfg));
-    ESP_ERROR_CHECK(i2c_driver_install(I2C_PERIPH_NUM, I2C_MODE_MASTER, 0, 0, 0));
+    i2c_device_config_t dev_cfg = {
+        .dev_addr_length = I2C_ADDR_BIT_LEN_7,
+        .device_address = STEREO_CODEC_I2C_ADDRESS,
+        .scl_speed_hz = 370000
+    };
+    ESP_ERROR_CHECK(i2c_master_bus_add_device(bus_handle, &dev_cfg, &dev_handle));
 }
 
 static esp_err_t set_reg(uint8_t reg, uint16_t data)
@@ -67,7 +76,7 @@ static esp_err_t set_reg(uint8_t reg, uint16_t data)
 
     while(1)
     {
-        res = i2c_master_write_to_device(I2C_PERIPH_NUM, STEREO_CODEC_I2C_ADDRESS, write_buf, 2, pdMS_TO_TICKS(20));
+        res = i2c_master_transmit(dev_handle, write_buf, 2, 50);
 
         if(res == ESP_OK)
         {
@@ -78,6 +87,8 @@ static esp_err_t set_reg(uint8_t reg, uint16_t data)
         }
         else
         {
+            ESP_LOGE(LOG_STEREO_CODEC, "%s", esp_err_to_name(res));
+
             if(++tryN > 15)
             {
                 ESP_LOGE(LOG_STEREO_CODEC, "reg %02X set failed:", reg);

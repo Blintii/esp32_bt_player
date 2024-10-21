@@ -95,8 +95,8 @@ void task_hub_tasks_create()
         return;
     }
 
-    xTaskCreatePinnedToCore(task_hub_bt_app_process, "MainAppTask", 4096, NULL, 22, NULL, 1);
-    xTaskCreatePinnedToCore(task_hub_I2C_process, "I2C", 4096, NULL, 20, NULL, 1);
+    xTaskCreatePinnedToCore(task_hub_bt_app_process, "MainAppTask", 8000, NULL, 20, NULL, 1);
+    xTaskCreatePinnedToCore(task_hub_I2C_process, "I2C", 8000, NULL, 24, NULL, 1);
     task_hub_I2S_buf_init();
 }
 
@@ -150,7 +150,7 @@ void task_hub_I2S_create()
     ESP_LOGI(LOG_TASKS, "ringbuffer data empty! mode changed: RINGBUFFER_MODE_PREFETCHING");
     ringbuffer_mode = RINGBUFFER_MODE_PREFETCHING;
 
-    xTaskCreatePinnedToCore(task_hub_I2S_process, "I2STask", 4096, NULL, 20, &s_bt_i2s_task_handle, 1);
+    xTaskCreatePinnedToCore(task_hub_I2S_process, "I2STask", 8000, NULL, 22, &s_bt_i2s_task_handle, 1);
 }
 
 void task_hub_I2S_del()
@@ -210,6 +210,7 @@ void task_hub_ringbuf_send(const uint8_t *data, size_t size)
             {
                 ESP_LOGI(LOG_TASKS, "ringbuffer data increased! mode changed: RINGBUFFER_MODE_PROCESSING");
                 ringbuffer_mode = RINGBUFFER_MODE_PROCESSING;
+                stereo_codec_I2S_enable_channel();
 
                 if(pdFALSE == xSemaphoreGive(s_i2s_write_semaphore))
                 {
@@ -247,12 +248,13 @@ static void task_hub_I2S_process()
             {
                 item_size = 0;
                 /* receive data from ringbuffer and write it to I2S DMA transmit buffer */
-                data = (uint8_t *)xRingbufferReceiveUpTo(s_ringbuf_i2s, &item_size, pdMS_TO_TICKS(20), item_size_upto);
+                data = (uint8_t *)xRingbufferReceiveUpTo(s_ringbuf_i2s, &item_size, pdMS_TO_TICKS(60), item_size_upto);
 
                 if(item_size == 0)
                 {
                     ESP_LOGI(LOG_TASKS, "ringbuffer underflowed! mode changed: RINGBUFFER_MODE_PREFETCHING");
                     ringbuffer_mode = RINGBUFFER_MODE_PREFETCHING;
+                    stereo_codec_I2S_disable_channel();
                     break;
                 }
 
@@ -273,6 +275,7 @@ static void task_hub_I2C_process()
             uint8_t tmp_in_percent = tmp * 100 / 0x7f;
             ESP_LOGI(LOG_TASKS, "start volume set: %d%%", tmp_in_percent);
             stereo_codec_set_volume(tmp);
+            vTaskDelay(pdMS_TO_TICKS(500));
             ESP_LOGI(LOG_TASKS, "end volume set: %d%%", tmp_in_percent);
         }
     }

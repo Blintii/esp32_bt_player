@@ -117,7 +117,16 @@ static void gap_callback(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *par
                     bda[0], bda[1], bda[2], bda[3], bda[4], bda[5], param->acl_disconn_cmpl_stat.reason);
             break;
         case ESP_BT_GAP_CONFIG_EIR_DATA_EVT:
-            ESP_LOGI(LOG_BT_GAP, "EIR data: %d", param->config_eir_data.eir_type_num);
+            char tmp[50] = {0};
+            char *cur = tmp;
+            bool first = true;
+            for(int i = 0; i < param->config_eir_data.eir_type_num; i++)
+            {
+                if(!first) cur += sprintf(cur, ", ");
+                cur += sprintf(cur, "%d", param->config_eir_data.eir_type[i]);
+                if(first) first = false;
+            }
+            ESP_LOGI(LOG_BT_GAP, "EIR data: [%d] = %s", param->config_eir_data.eir_type_num, tmp);
             break;
         /* others */
         default:
