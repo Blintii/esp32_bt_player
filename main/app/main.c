@@ -19,7 +19,18 @@
 
 void app_main(void)
 {
-    ESP_LOGI(LOG_MAIN, ">>>>>>>>>>>>>>>>>>>  START  <<<<<<<<<<<<<<<<<<<");
+    ESP_LOGI(LOG_MAIN, LOG_RESET_COLOR
+        "\n       _             _ _"
+        "\n      / \\  _   _  __| (_) ___"
+        "\n     / _ \\| | | |/ _` | |/ _ \\"
+        "\n    / ___ \\ |_| | (_| | | (_) |"
+        "\n   /_/   \\_\\__,_|\\__,_|_|\\___/"
+        "\n                 ____                 _"
+        "\n                |  _ \\ ___  __ _  ___| |_"
+        "\n                | |_) / _ \\/ _` |/ __| __|"
+        "\n                |  _ <  __/ (_| | (__| |_"
+        "\n                |_| \\_\\___|\\__,_|\\___|\\__|"
+        "\n");
 
     /* initialize NVS — it is used to store PHY calibration data */
     esp_err_t err = nvs_flash_init();
@@ -57,9 +68,6 @@ void app_main(void)
         ESP_LOGE(LOG_MAIN, "%s enable bluedroid failed: %s", __func__, esp_err_to_name(err));
         return;
     }
-
-    /* init bluetooth device */
-    esp_bt_dev_set_device_name(BT_DEVICE_NAME);
 
     /* init audio peripheral */
     stereo_codec_control_init();

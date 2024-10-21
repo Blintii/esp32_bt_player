@@ -17,6 +17,9 @@ static void gap_callback(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *par
 
 void bt_gap_init()
 {
+    /* init bluetooth device */
+    esp_bt_gap_set_device_name(BT_DEVICE_NAME);
+
     ESP_ERROR_CHECK(esp_bt_gap_register_callback(gap_callback));
 
     ledc_timer_config_t ledc_cfg = {
