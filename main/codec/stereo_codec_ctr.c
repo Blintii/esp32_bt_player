@@ -6,6 +6,7 @@
 #include "main.h"
 #include "stereo_codec.h"
 #include "stereo_codec_reg.h"
+#include "bt_gap.h"
 
 
 #define BIT_ON(bitN)        1<<bitN
@@ -60,7 +61,7 @@ static void setup_I2C()
     i2c_device_config_t dev_cfg = {
         .dev_addr_length = I2C_ADDR_BIT_LEN_7,
         .device_address = STEREO_CODEC_I2C_ADDRESS,
-        .scl_speed_hz = 370000
+        .scl_speed_hz = 226600
     };
     ESP_ERROR_CHECK(i2c_master_bus_add_device(bus_handle, &dev_cfg, &dev_handle));
 }
@@ -76,7 +77,7 @@ static esp_err_t set_reg(uint8_t reg, uint16_t data)
 
     while(1)
     {
-        res = i2c_master_transmit(dev_handle, write_buf, 2, 50);
+        res = i2c_master_transmit(dev_handle, write_buf, 2, 100);
 
         if(res == ESP_OK)
         {
@@ -88,6 +89,7 @@ static esp_err_t set_reg(uint8_t reg, uint16_t data)
         else
         {
             ESP_LOGE(LOG_STEREO_CODEC, "%s", esp_err_to_name(res));
+            bt_gap_led_set_fast();
 
             if(++tryN > 15)
             {

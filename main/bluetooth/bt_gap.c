@@ -58,6 +58,11 @@ void bt_gap_hide()
     ESP_LOGI(LOG_BT_GAP, "device not discoverable and not connectable anymore");
 }
 
+void bt_gap_led_set_fast()
+{
+    gap_led_cfg(21000, 2047);
+}
+
 void bt_gap_led_set_weak()
 {
     gap_led_cfg(256, 200);

@@ -2,6 +2,7 @@
 #include "esp_system.h"
 #include "esp_log.h"
 #include "driver/i2s_std.h"
+#include "driver/gpio.h"
 
 #include "main.h"
 #include "stereo_codec.h"
@@ -25,7 +26,7 @@ void stereo_codec_I2S_start()
     i2s_std_config_t std_cfg = {
         .clk_cfg = {
             .sample_rate_hz = 44100,
-            .clk_src = I2S_CLK_SRC_DEFAULT,
+            .clk_src = I2S_CLK_SRC_APLL,
             .mclk_multiple = I2S_MCLK_MULTIPLE_256
         },
         .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO),
@@ -44,6 +45,9 @@ void stereo_codec_I2S_start()
     };
 
     ESP_ERROR_CHECK(i2s_channel_init_std_mode(tx_chan, &std_cfg));
+    gpio_set_drive_capability(PIN_I2S_BCLK, GPIO_DRIVE_CAP_0);
+    gpio_set_drive_capability(PIN_I2S_WS, GPIO_DRIVE_CAP_0);
+    gpio_set_drive_capability(PIN_I2S_DOUT, GPIO_DRIVE_CAP_0);
 }
 
 void stereo_codec_I2S_stop()

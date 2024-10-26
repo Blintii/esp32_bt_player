@@ -32,6 +32,13 @@ void app_main(void)
         "\n                |_| \\_\\___|\\__,_|\\___|\\__|"
         "\n");
 
+    esp_log_level_set("gpio", ESP_LOG_WARN);
+    esp_log_level_set("i2c.master", ESP_LOG_NONE);
+    /* init application tasks */
+    task_hub_tasks_create();
+    /* wait for I2C setup */
+    vTaskDelay(pdMS_TO_TICKS(100));
+
     /* initialize NVS — it is used to store PHY calibration data */
     esp_err_t err = nvs_flash_init();
 
@@ -68,12 +75,6 @@ void app_main(void)
         ESP_LOGE(LOG_MAIN, "%s enable bluedroid failed: %s", __func__, esp_err_to_name(err));
         return;
     }
-
-    /* init audio peripheral */
-    stereo_codec_control_init();
-
-    /* init application tasks */
-    task_hub_tasks_create();
 
     /* init bluetooth profiles */
     bt_gap_init();

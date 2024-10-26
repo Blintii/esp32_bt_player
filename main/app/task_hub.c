@@ -267,6 +267,9 @@ static void task_hub_I2S_process()
 
 static void task_hub_I2C_process()
 {
+    /* init audio peripheral */
+    stereo_codec_control_init();
+
     while(1)
     {
         if(pdTRUE == xSemaphoreTake(s_i2c_semaphore, portMAX_DELAY))
@@ -285,9 +288,5 @@ static void task_hub_I2C_process()
 void task_hub_set_volume(uint8_t vol)
 {
     last_vol = vol;
-
-    if(pdFALSE == xSemaphoreGive(s_i2c_semaphore))
-    {
-        ESP_LOGE(LOG_TASKS, "I2C semaphore give failed");
-    }
+    xSemaphoreGive(s_i2c_semaphore);
 }
