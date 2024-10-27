@@ -2,13 +2,13 @@
 #include <string.h>
 #include <stdbool.h>
 #include "esp_system.h"
-#include "esp_log.h"
 #include "esp_avrc_api.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-#include "main.h"
+#include "app_config.h"
+#include "app.h"
 #include "bt_avrcp.h"
 #include "task_hub.h"
 #include "stereo_codec.h"
@@ -26,6 +26,8 @@ static void avrcp_target_event(uint16_t event, void *p_param);
 static void volume_set_by_controller(uint8_t volume);
 
 
+static const char *TAG = LOG_COLOR("94") "BT_AVRCP";
+static const char *TAGE = LOG_COLOR("94") "BT_AVRCP" LOG_COLOR_E;
 /* AVRC target notification capability bit mask */
 static esp_avrc_rn_evt_cap_mask_t s_avrc_peer_rn_cap;
 /* local volume value */
@@ -35,16 +37,16 @@ static uint8_t s_volume = 0;
 void bt_avrcp_init()
 {
     /* controller need to init first */
-    ESP_ERROR_CHECK(esp_avrc_ct_init());
-    ESP_ERROR_CHECK(esp_avrc_ct_register_callback(avrcp_control_callback));
+    ERR_CHECK_RESET(esp_avrc_ct_init());
+    ERR_CHECK_RESET(esp_avrc_ct_register_callback(avrcp_control_callback));
 
     /* target only can init after controller init complete */
-    ESP_ERROR_CHECK(esp_avrc_tg_init());
-    ESP_ERROR_CHECK(esp_avrc_tg_register_callback(avrcp_target_callback));
+    ERR_CHECK_RESET(esp_avrc_tg_init());
+    ERR_CHECK_RESET(esp_avrc_tg_register_callback(avrcp_target_callback));
 
     esp_avrc_rn_evt_cap_mask_t evt_set = {0};
     esp_avrc_rn_evt_bit_mask_operation(ESP_AVRC_BIT_MASK_OP_SET, &evt_set, ESP_AVRC_RN_VOLUME_CHANGE);
-    ESP_ERROR_CHECK(esp_avrc_tg_set_rn_evt_cap(&evt_set));
+    ERR_CHECK_RESET(esp_avrc_tg_set_rn_evt_cap(&evt_set));
 }
 
 static void avrcp_control_callback(esp_avrc_ct_cb_event_t event, esp_avrc_ct_cb_param_t *param)
@@ -63,7 +65,7 @@ static void avrcp_control_callback(esp_avrc_ct_cb_event_t event, esp_avrc_ct_cb_
             break;
         }
         default:
-            ESP_LOGE(LOG_BT_AVRCP, "%s unhandled event: %d", __func__, event);
+            ESP_LOGE(TAGE, "%s unhandled event: %d", __func__, event);
             break;
     }
 }
@@ -87,7 +89,7 @@ static void avrcp_control_event(uint16_t event, void *p_param)
         /* when connection state changed, this event comes */
         case ESP_AVRC_CT_CONNECTION_STATE_EVT: {
             uint8_t *bda = rc->conn_stat.remote_bda;
-            ESP_LOGI(LOG_BT_AVRCP, "CT connection state: %d, [%02x:%02x:%02x:%02x:%02x:%02x]",
+            ESP_LOGI(TAG, "CT connection state: %d, [%02x:%02x:%02x:%02x:%02x:%02x]",
                         rc->conn_stat.connected, bda[0], bda[1], bda[2], bda[3], bda[4], bda[5]);
 
             if (rc->conn_stat.connected) {
@@ -101,7 +103,7 @@ static void avrcp_control_event(uint16_t event, void *p_param)
         }
         /* when passthrough responsed, this event comes */
         case ESP_AVRC_CT_PASSTHROUGH_RSP_EVT: {
-            ESP_LOGI(LOG_BT_AVRCP, "passthrough responsed: key_code 0x%x, key_state %d, rsp_code %d", rc->psth_rsp.key_code,
+            ESP_LOGI(TAG, "passthrough responsed: key_code 0x%x, key_state %d, rsp_code %d", rc->psth_rsp.key_code,
                         rc->psth_rsp.key_state, rc->psth_rsp.rsp_code);
             break;
         }
@@ -109,12 +111,12 @@ static void avrcp_control_event(uint16_t event, void *p_param)
         case ESP_AVRC_CT_METADATA_RSP_EVT: {
             switch(rc->meta_rsp.attr_id)
             {
-                case ESP_AVRC_MD_ATTR_TITLE: ESP_LOGI(LOG_BT_AVRCP, "title: %s", rc->meta_rsp.attr_text); break;
-                case ESP_AVRC_MD_ATTR_ARTIST: ESP_LOGI(LOG_BT_AVRCP, "artist: %s", rc->meta_rsp.attr_text); break;
-                case ESP_AVRC_MD_ATTR_ALBUM: ESP_LOGI(LOG_BT_AVRCP, "album: %s", rc->meta_rsp.attr_text); break;
-                case ESP_AVRC_MD_ATTR_PLAYING_TIME: ESP_LOGI(LOG_BT_AVRCP, "play time: %s", rc->meta_rsp.attr_text); break;
+                case ESP_AVRC_MD_ATTR_TITLE: ESP_LOGI(TAG, "title: %s", rc->meta_rsp.attr_text); break;
+                case ESP_AVRC_MD_ATTR_ARTIST: ESP_LOGI(TAG, "artist: %s", rc->meta_rsp.attr_text); break;
+                case ESP_AVRC_MD_ATTR_ALBUM: ESP_LOGI(TAG, "album: %s", rc->meta_rsp.attr_text); break;
+                case ESP_AVRC_MD_ATTR_PLAYING_TIME: ESP_LOGI(TAG, "play time: %s", rc->meta_rsp.attr_text); break;
                 default:
-                    ESP_LOGI(LOG_BT_AVRCP, "metadata attribute id 0x%x, %s", rc->meta_rsp.attr_id, rc->meta_rsp.attr_text);
+                    ESP_LOGI(TAG, "metadata attribute id 0x%x, %s", rc->meta_rsp.attr_id, rc->meta_rsp.attr_text);
                     break;
             }
 
@@ -123,18 +125,18 @@ static void avrcp_control_event(uint16_t event, void *p_param)
         }
         /* when notified, this event comes */
         case ESP_AVRC_CT_CHANGE_NOTIFY_EVT: {
-            ESP_LOGI(LOG_BT_AVRCP, "event notification: %d", rc->change_ntf.event_id);
+            ESP_LOGI(TAG, "event notification: %d", rc->change_ntf.event_id);
             avrcp_notify_event_handler(rc->change_ntf.event_id, &rc->change_ntf.event_parameter);
             break;
         }
         /* when feature of remote device indicated, this event comes */
         case ESP_AVRC_CT_REMOTE_FEATURES_EVT: {
-            ESP_LOGI(LOG_BT_AVRCP, "remote features 0x%lX, TG features 0x%X", rc->rmt_feats.feat_mask, rc->rmt_feats.tg_feat_flag);
+            ESP_LOGI(TAG, "remote features 0x%lX, TG features 0x%X", rc->rmt_feats.feat_mask, rc->rmt_feats.tg_feat_flag);
             break;
         }
         /* when notification capability of peer device got, this event comes */
         case ESP_AVRC_CT_GET_RN_CAPABILITIES_RSP_EVT: {
-            ESP_LOGI(LOG_BT_AVRCP, "remote rn_cap: count %d, bitmask 0x%X", rc->get_rn_caps_rsp.cap_count,
+            ESP_LOGI(TAG, "remote rn_cap: count %d, bitmask 0x%X", rc->get_rn_caps_rsp.cap_count,
                         rc->get_rn_caps_rsp.evt_set.bits);
             s_avrc_peer_rn_cap.bits = rc->get_rn_caps_rsp.evt_set.bits;
             avrcp_new_track_loaded();
@@ -144,7 +146,7 @@ static void avrcp_control_event(uint16_t event, void *p_param)
         }
         /* others */
         default:
-            ESP_LOGE(LOG_BT_AVRCP, "%s unhandled event: %d", __func__, event);
+            ESP_LOGE(TAGE, "%s unhandled event: %d", __func__, event);
             break;
     }
 }
@@ -166,19 +168,19 @@ static void avrcp_notify_event_handler(uint8_t event_id, esp_avrc_rn_param_t *ev
 
             if(str_i == ESP_AVRC_PLAYBACK_ERROR) str_i = 5;
 
-            ESP_LOGI(LOG_BT_AVRCP, "Playback status changed: %s", s_audio_playback_state_str[str_i]);
+            ESP_LOGI(TAG, "Playback status changed: %s", s_audio_playback_state_str[str_i]);
             avrcp_playback_status_changed();
             break;
         }
         /* when track playing position changed, this event comes */
         case ESP_AVRC_RN_PLAY_POS_CHANGED: {
-            ESP_LOGI(LOG_BT_AVRCP, "Play position changed: %lu-ms", event_parameter->play_pos);
+            ESP_LOGI(TAG, "Play position changed: %lu-ms", event_parameter->play_pos);
             avrcp_play_pos_changed();
             break;
         }
         /* others */
         default:
-            ESP_LOGI(LOG_BT_AVRCP, "unhandled event: %d", event_id);
+            ESP_LOGI(TAG, "unhandled event: %d", event_id);
             break;
     }
 }
@@ -236,7 +238,7 @@ static void avrcp_target_callback(esp_avrc_tg_cb_event_t event, esp_avrc_tg_cb_p
             task_hub_bt_app_work_dispatch(avrcp_target_event, event, param, sizeof(esp_avrc_tg_cb_param_t));
             break;
         default:
-            ESP_LOGE(LOG_BT_AVRCP, "%s unhandled event: %d", __func__, event);
+            ESP_LOGE(TAGE, "%s unhandled event: %d", __func__, event);
             break;
     }
 }
@@ -250,24 +252,24 @@ static void avrcp_target_event(uint16_t event, void *p_param)
         /* when connection state changed, this event comes */
         case ESP_AVRC_TG_CONNECTION_STATE_EVT: {
             uint8_t *bda = rc->conn_stat.remote_bda;
-            ESP_LOGI(LOG_BT_AVRCP, "TG connection state: %d, [%02x:%02x:%02x:%02x:%02x:%02x]",
+            ESP_LOGI(TAG, "TG connection state: %d, [%02x:%02x:%02x:%02x:%02x:%02x]",
                     rc->conn_stat.connected, bda[0], bda[1], bda[2], bda[3], bda[4], bda[5]);
             break;
         }
         /* when passthrough commanded, this event comes */
         case ESP_AVRC_TG_PASSTHROUGH_CMD_EVT: {
-            ESP_LOGI(LOG_BT_AVRCP, "passthrough cmd: key_code 0x%X, key_state %d", rc->psth_cmd.key_code, rc->psth_cmd.key_state);
+            ESP_LOGI(TAG, "passthrough cmd: key_code 0x%X, key_state %d", rc->psth_cmd.key_code, rc->psth_cmd.key_state);
             break;
         }
         /* when absolute volume command from remote device set, this event comes */
         case ESP_AVRC_TG_SET_ABSOLUTE_VOLUME_CMD_EVT: {
-            ESP_LOGI(LOG_BT_AVRCP, "set absolute volume: %d%%", (int)rc->set_abs_vol.volume * 100 / 0x7f);
+            ESP_LOGI(TAG, "set absolute volume: %d%%", (int)rc->set_abs_vol.volume * 100 / 0x7f);
             volume_set_by_controller(rc->set_abs_vol.volume);
             break;
         }
         /* when notification registered, this event comes */
         case ESP_AVRC_TG_REGISTER_NOTIFICATION_EVT: {
-            ESP_LOGI(LOG_BT_AVRCP, "register event notification: %d, param: 0x%"PRIx32, rc->reg_ntf.event_id, rc->reg_ntf.event_parameter);
+            ESP_LOGI(TAG, "register event notification: %d, param: 0x%"PRIx32, rc->reg_ntf.event_id, rc->reg_ntf.event_parameter);
             if (rc->reg_ntf.event_id == ESP_AVRC_RN_VOLUME_CHANGE) {
                 esp_avrc_rn_param_t rn_param;
                 rn_param.volume = s_volume;
@@ -277,12 +279,12 @@ static void avrcp_target_event(uint16_t event, void *p_param)
         }
         /* when feature of remote device indicated, this event comes */
         case ESP_AVRC_TG_REMOTE_FEATURES_EVT: {
-            ESP_LOGI(LOG_BT_AVRCP, "remote features: %lX, CT features: %X", rc->rmt_feats.feat_mask, rc->rmt_feats.ct_feat_flag);
+            ESP_LOGI(TAG, "remote features: %lX, CT features: %X", rc->rmt_feats.feat_mask, rc->rmt_feats.ct_feat_flag);
             break;
         }
         /* others */
         default:
-            ESP_LOGE(LOG_BT_AVRCP, "%s unhandled event: %d", __func__, event);
+            ESP_LOGE(TAGE, "%s unhandled event: %d", __func__, event);
             break;
     }
 }

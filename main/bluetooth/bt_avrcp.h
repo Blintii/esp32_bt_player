@@ -6,8 +6,6 @@
 #define __BT_AVRCP_H__
 
 
-#define LOG_BT_AVRCP "BT_AVRCP"
-
 /* AVRCP used transaction labels */
 #define APP_RC_CT_TL_GET_CAPS            (0)
 #define APP_RC_CT_TL_GET_META_DATA       (1)

@@ -3,7 +3,8 @@
 #include "esp_check.h"
 #include "freertos/FreeRTOS.h"
 
-#include "main.h"
+#include "app_config.h"
+#include "app.h"
 #include "stereo_codec.h"
 #include "stereo_codec_reg.h"
 #include "bt_gap.h"
@@ -18,6 +19,8 @@ static esp_err_t set_reg(uint8_t reg, uint16_t data);
 static esp_err_t config_WM8960();
 
 
+static const char *TAG = LOG_COLOR("95") "CODEC" LOG_RESET_COLOR;
+static const char *TAGE = LOG_COLOR("95") "CODEC" LOG_COLOR_E;
 static i2c_master_bus_handle_t bus_handle;
 static i2c_master_dev_handle_t dev_handle;
 
@@ -56,14 +59,14 @@ static void setup_I2C()
         /* on waveshare WM8960 audio board there are 10k pullup resistors */
         .flags.enable_internal_pullup = true
     };
-    ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_mst_config, &bus_handle));
+    ERR_CHECK_RESET(i2c_new_master_bus(&i2c_mst_config, &bus_handle));
 
     i2c_device_config_t dev_cfg = {
         .dev_addr_length = I2C_ADDR_BIT_LEN_7,
         .device_address = STEREO_CODEC_I2C_ADDRESS,
         .scl_speed_hz = 226600
     };
-    ESP_ERROR_CHECK(i2c_master_bus_add_device(bus_handle, &dev_cfg, &dev_handle));
+    ERR_CHECK_RESET(i2c_master_bus_add_device(bus_handle, &dev_cfg, &dev_handle));
 }
 
 static esp_err_t set_reg(uint8_t reg, uint16_t data)
@@ -81,19 +84,19 @@ static esp_err_t set_reg(uint8_t reg, uint16_t data)
 
         if(res == ESP_OK)
         {
-            if(tryN < 2) ESP_LOGI(LOG_STEREO_CODEC, "reg %02X set OK after %d try", reg, tryN);
-            else ESP_LOGW(LOG_STEREO_CODEC, "reg %02X set OK after %d try", reg, tryN);
+            if(tryN < 2) ESP_LOGI(TAG, "reg %02X set OK after %d try", reg, tryN);
+            else ESP_LOGW(TAGE, "reg %02X set OK after %d try", reg, tryN);
 
             break;
         }
         else
         {
-            ESP_LOGE(LOG_STEREO_CODEC, "%s", esp_err_to_name(res));
+            ESP_LOGE(TAGE, "%s", esp_err_to_name(res));
             bt_gap_led_set_fast();
 
             if(++tryN > 15)
             {
-                ESP_LOGE(LOG_STEREO_CODEC, "reg %02X set failed:", reg);
+                ESP_LOGE(TAGE, "reg %02X set failed:", reg);
                 break;
             }
         }

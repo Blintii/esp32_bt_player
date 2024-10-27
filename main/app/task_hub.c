@@ -1,14 +1,14 @@
 
 #include <string.h>
 #include "esp_system.h"
-#include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/semphr.h"
 #include "freertos/ringbuf.h"
 
-#include "main.h"
+#include "app_config.h"
 #include "task_hub.h"
+#include "app.h"
 #include "stereo_codec.h"
 #include "bt_gap.h"
 
@@ -30,6 +30,8 @@ static void task_hub_I2S_process();
 static void task_hub_I2C_process();
 
 
+static const char *TAG = LOG_COLOR("91") "task" LOG_RESET_COLOR;
+static const char *TAGE = LOG_COLOR("91") "task" LOG_COLOR_E;
 /* handle of I2S task */
 static TaskHandle_t s_bt_i2s_task_handle = NULL;
 /* handle of work queue */
@@ -65,35 +67,20 @@ bool task_hub_bt_app_work_dispatch(bt_app_cb_t p_cback, uint16_t event, void *p_
 
 static bool bt_app_send_msg(bt_app_msg_t *msg)
 {
-    if (msg == NULL) {
-        return false;
-    }
+    ERR_IF_NULL_RETURN_VAL(msg, false);
 
     /* send the message to work queue */
-    if (xQueueSend(s_bt_app_task_queue, msg, pdMS_TO_TICKS(10)) != pdTRUE) {
-        ESP_LOGE(LOG_TASKS, "%s work xQueue send failed", __func__);
-        return false;
-    }
+    ERR_CHECK_RETURN_VAL((pdTRUE != xQueueSend(s_bt_app_task_queue, msg, pdMS_TO_TICKS(10))), false);
     return true;
 }
 
 void task_hub_tasks_create()
 {
     s_bt_app_task_queue = xQueueCreate(10, sizeof(bt_app_msg_t));
-
-    if(NULL == s_bt_app_task_queue)
-    {
-        ESP_LOGE(LOG_TASKS, "%s, work xQueue create failed", __func__);
-        return;
-    }
+    ERR_IF_NULL_RETURN(s_bt_app_task_queue);
 
     s_i2c_semaphore = xSemaphoreCreateBinary();
-
-    if(NULL == s_i2c_semaphore)
-    {
-        ESP_LOGE(LOG_TASKS, "%s, I2C semaphore create failed", __func__);
-        return;
-    }
+    ERR_IF_NULL_RETURN(s_i2c_semaphore);
 
     xTaskCreatePinnedToCore(task_hub_bt_app_process, "MainAppTask", 8000, NULL, 20, NULL, 1);
     xTaskCreatePinnedToCore(task_hub_I2C_process, "I2C", 8000, NULL, 24, NULL, 1);
@@ -118,36 +105,26 @@ void task_hub_bt_app_process()
 
 void task_hub_I2S_buf_init()
 {
-    ESP_LOGI(LOG_TASKS, "I2S ringbuffer init...");
+    ESP_LOGE(TAG, "I2S ringbuffer init...");
     s_i2s_write_semaphore = xSemaphoreCreateBinary();
-
-    if(NULL == s_i2s_write_semaphore)
-    {
-        ESP_LOGE(LOG_TASKS, "%s, I2S semaphore create failed", __func__);
-        return;
-    }
+    ERR_IF_NULL_RETURN(s_i2s_write_semaphore);
 
     s_ringbuf_i2s = xRingbufferCreate(RINGBUF_HIGHEST_WATER_LEVEL, RINGBUF_TYPE_BYTEBUF);
-
-    if(NULL == s_ringbuf_i2s)
-    {
-        ESP_LOGE(LOG_TASKS, "%s, I2S ringbuffer create failed", __func__);
-        return;
-    }
+    ERR_IF_NULL_RETURN(s_ringbuf_i2s);
 
     ringbuffer_mode = RINGBUFFER_MODE_READY;
-    ESP_LOGI(LOG_TASKS, "I2S ringbuffer ready!");
+    ESP_LOGE(TAG, "I2S ringbuffer ready!");
 }
 
 void task_hub_I2S_create()
 {
     if(ringbuffer_mode != RINGBUFFER_MODE_READY)
     {
-        ESP_LOGE(LOG_TASKS, "%s, I2S ringbuffer not ready", __func__);
+        ESP_LOGE(TAGE, "%s, I2S ringbuffer not ready", __func__);
         return;
     }
 
-    ESP_LOGI(LOG_TASKS, "ringbuffer data empty! mode changed: RINGBUFFER_MODE_PREFETCHING");
+    ESP_LOGE(TAG, "ringbuffer data empty! mode changed: RINGBUFFER_MODE_PREFETCHING");
     ringbuffer_mode = RINGBUFFER_MODE_PREFETCHING;
 
     xTaskCreatePinnedToCore(task_hub_I2S_process, "I2STask", 8000, NULL, 22, &s_bt_i2s_task_handle, 1);
@@ -186,12 +163,12 @@ void task_hub_ringbuf_send(const uint8_t *data, size_t size)
 
     if(ringbuffer_mode == RINGBUFFER_MODE_DROPPING)
     {
-        ESP_LOGW(LOG_TASKS, "ringbuffer is full, drop this packet!");
+        ESP_LOGW(TAGE, "ringbuffer is full, drop this packet!");
         vRingbufferGetInfo(s_ringbuf_i2s, NULL, NULL, NULL, NULL, &buf_items_size);
 
         if(buf_items_size <= RINGBUF_PREFETCH_WATER_LEVEL)
         {
-            ESP_LOGI(LOG_TASKS, "ringbuffer data decreased! mode changed: RINGBUFFER_MODE_PROCESSING");
+            ESP_LOGE(TAG, "ringbuffer data decreased! mode changed: RINGBUFFER_MODE_PROCESSING");
             ringbuffer_mode = RINGBUFFER_MODE_PROCESSING;
         }
 
@@ -208,20 +185,20 @@ void task_hub_ringbuf_send(const uint8_t *data, size_t size)
 
             if(buf_items_size >= RINGBUF_PREFETCH_WATER_LEVEL)
             {
-                ESP_LOGI(LOG_TASKS, "ringbuffer data increased! mode changed: RINGBUFFER_MODE_PROCESSING");
+                ESP_LOGE(TAG, "ringbuffer data increased! mode changed: RINGBUFFER_MODE_PROCESSING");
                 ringbuffer_mode = RINGBUFFER_MODE_PROCESSING;
                 stereo_codec_I2S_enable_channel();
 
                 if(pdFALSE == xSemaphoreGive(s_i2s_write_semaphore))
                 {
-                    ESP_LOGE(LOG_TASKS, "semaphore give failed");
+                    ESP_LOGE(TAGE, "i2s write semaphore give failed");
                 }
             }
         }
     }
     else
     {
-        ESP_LOGW(LOG_TASKS, "ringbuffer overflowed, ready to decrease data! mode changed: RINGBUFFER_MODE_DROPPING");
+        ESP_LOGW(TAGE, "ringbuffer overflowed, ready to decrease data! mode changed: RINGBUFFER_MODE_DROPPING");
         ringbuffer_mode = RINGBUFFER_MODE_DROPPING;
     }
 }
@@ -252,7 +229,7 @@ static void task_hub_I2S_process()
 
                 if(item_size == 0)
                 {
-                    ESP_LOGI(LOG_TASKS, "ringbuffer underflowed! mode changed: RINGBUFFER_MODE_PREFETCHING");
+                    ESP_LOGE(TAG, "ringbuffer underflowed! mode changed: RINGBUFFER_MODE_PREFETCHING");
                     ringbuffer_mode = RINGBUFFER_MODE_PREFETCHING;
                     stereo_codec_I2S_disable_channel();
                     break;
@@ -276,10 +253,10 @@ static void task_hub_I2C_process()
         {
             uint8_t tmp = last_vol;
             uint8_t tmp_in_percent = tmp * 100 / 0x7f;
-            ESP_LOGI(LOG_TASKS, "start volume set: %d%%", tmp_in_percent);
+            ESP_LOGE(TAG, "start volume set: %d%%", tmp_in_percent);
             stereo_codec_set_volume(tmp);
             vTaskDelay(pdMS_TO_TICKS(500));
-            ESP_LOGI(LOG_TASKS, "end volume set: %d%%", tmp_in_percent);
+            ESP_LOGE(TAG, "end volume set: %d%%", tmp_in_percent);
         }
     }
 

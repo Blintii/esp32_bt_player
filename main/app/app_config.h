@@ -1,12 +1,12 @@
 
-#ifndef __MAIN_H__
-#define __MAIN_H__
+#ifndef __APP_CONFIG_H__
+#define __APP_CONFIG_H__
 
 
 #define BT_DEVICE_NAME "ESP_SPEAKER"
+#define BT_A2DP_APP_DELAY_VALUE 50 // 5ms
 
 #define STEREO_CODEC_I2C_ADDRESS 0x1A
-
 
 /* used I2C pins */
 #define PIN_I2C_SDA         GPIO_NUM_21 // VDD3P3_CPU
@@ -18,7 +18,7 @@
 #define PIN_I2S_DOUT        GPIO_NUM_33 // VDD3P3_RTC
 
 /* onboard LED */
-#define PIN_LED_BLUE            GPIO_NUM_2 // VDD3P3_RTC
+#define PIN_LED_BLUE        GPIO_NUM_2 // VDD3P3_RTC
 
 
 /* used I2C peripheral number */
@@ -32,4 +32,4 @@
 #define I2S_DMA_FRAME_N     240
 
 
-#endif /* __MAIN_H__ */
+#endif /* __APP_CONFIG_H__ */

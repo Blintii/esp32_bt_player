@@ -4,11 +4,14 @@
 #include "driver/i2s_std.h"
 #include "driver/gpio.h"
 
-#include "main.h"
+#include "app_config.h"
+#include "app.h"
 #include "stereo_codec.h"
 
 
-i2s_chan_handle_t tx_chan = NULL;
+static const char *TAG = LOG_COLOR("95") "CODEC" LOG_RESET_COLOR;
+static const char *TAGE = LOG_COLOR("95") "CODEC" LOG_COLOR_E;
+static i2s_chan_handle_t tx_chan = NULL;
 
 
 void stereo_codec_I2S_start()
@@ -21,7 +24,7 @@ void stereo_codec_I2S_start()
         .auto_clear = true
     };
 
-    ESP_ERROR_CHECK(i2s_new_channel(&chan_cfg, &tx_chan, NULL));
+    ERR_CHECK_RESET(i2s_new_channel(&chan_cfg, &tx_chan, NULL));
 
     i2s_std_config_t std_cfg = {
         .clk_cfg = {
@@ -44,10 +47,10 @@ void stereo_codec_I2S_start()
         }
     };
 
-    ESP_ERROR_CHECK(i2s_channel_init_std_mode(tx_chan, &std_cfg));
-    gpio_set_drive_capability(PIN_I2S_BCLK, GPIO_DRIVE_CAP_0);
-    gpio_set_drive_capability(PIN_I2S_WS, GPIO_DRIVE_CAP_0);
-    gpio_set_drive_capability(PIN_I2S_DOUT, GPIO_DRIVE_CAP_0);
+    ERR_CHECK_RESET(i2s_channel_init_std_mode(tx_chan, &std_cfg));
+    ERR_CHECK_RESET(gpio_set_drive_capability(PIN_I2S_BCLK, GPIO_DRIVE_CAP_0));
+    ERR_CHECK_RESET(gpio_set_drive_capability(PIN_I2S_WS, GPIO_DRIVE_CAP_0));
+    ERR_CHECK_RESET(gpio_set_drive_capability(PIN_I2S_DOUT, GPIO_DRIVE_CAP_0));
 }
 
 void stereo_codec_I2S_stop()
@@ -60,18 +63,18 @@ void stereo_codec_I2S_write(const void *src, size_t size, uint32_t timeout_ms)
 {
     if(ESP_OK != i2s_channel_write(tx_chan, src, size, NULL, timeout_ms))
     {
-        ESP_LOGE(LOG_STEREO_CODEC, "I2S channel write failed");
+        ESP_LOGE(TAGE, "I2S channel write failed");
     }
 }
 
 void stereo_codec_I2S_enable_channel()
 {
-    ESP_LOGW(LOG_STEREO_CODEC, "I2S channel STARTED");
+    ESP_LOGW(TAGE, "I2S channel STARTED");
     ESP_ERROR_CHECK(i2s_channel_enable(tx_chan));
 }
 
 void stereo_codec_I2S_disable_channel()
 {
-    ESP_LOGW(LOG_STEREO_CODEC, "I2S channel STOPPED");
+    ESP_LOGW(TAGE, "I2S channel STOPPED");
     ESP_ERROR_CHECK(i2s_channel_disable(tx_chan));
 }

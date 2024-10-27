@@ -10,35 +10,28 @@
 #include <stdbool.h>
 
 
-#define LOG_TASKS "TASKS"
-
-
-/**
- * @brief  handler for the dispatched work
- *
- * @param [in] event  event id
- * @param [in] param  handler parameter
- */
+/* handler for the dispatched work */
 typedef void (* bt_app_cb_t) (uint16_t event, void *param);
 
 /* message to be sent */
 typedef struct {
-    uint16_t       event;    /*!< message event id */
-    bt_app_cb_t    cb;       /*!< context switch callback */
-    void           *param;   /*!< parameter area needs to be last */
+    uint16_t       event;    /* message event id */
+    bt_app_cb_t    cb;       /* context switch callback */
+    void           *param;   /* parameter area needs to be last */
 } bt_app_msg_t;
 
 
-/**
- * @brief  work dispatcher for the application task
+/*
+ * work dispatcher for the application task
  *
- * @param [in] p_cback       callback function
- * @param [in] event         event id
- * @param [in] p_params      callback paramters
- * @param [in] param_len     parameter length in byte
- * @param [in] p_copy_cback  parameter deep-copy function
+ * p_cback:       callback function
+ * event:         event id
+ * p_params:      callback paramters
+ * param_len:     parameter length in byte
+ * p_copy_cback:  parameter deep-copy function
  *
- * @return  true if work dispatch successfully, false otherwise
+ * return:
+ *  true if work dispatch successfully, false otherwise
  */
 bool task_hub_bt_app_work_dispatch(bt_app_cb_t p_cback, uint16_t event, void *p_params, int param_len);
 

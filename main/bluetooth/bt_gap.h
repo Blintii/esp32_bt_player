@@ -6,9 +6,6 @@
 #define __BT_GAP_H__
 
 
-#define LOG_BT_GAP "BT_GAP"
-
-
 void bt_gap_init();
 void bt_gap_show();
 void bt_gap_hide();

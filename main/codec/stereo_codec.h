@@ -10,9 +10,6 @@
 #include <stddef.h>
 
 
-#define LOG_STEREO_CODEC "CODEC"
-
-
 void stereo_codec_control_init();
 void stereo_codec_set_volume(uint8_t vol);
 
