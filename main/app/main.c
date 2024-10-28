@@ -13,13 +13,13 @@
 #include "bt_a2dp.h"
 
 
-static const char *TAG = LOG_COLOR("90") "app";
-static const char *TAGE = LOG_COLOR("90") "app" LOG_COLOR_E;
+static const char *TAG = LOG_COLOR("37") "app";
+static const char *TAGE = LOG_COLOR("37") "app" LOG_COLOR_E;
 
 
 void app_main(void)
 {
-    ESP_LOGI(TAG, LOG_RESET_COLOR
+    ESP_LOGI(TAG,
         "\n       _             _ _"
         "\n      / \\  _   _  __| (_) ___"
         "\n     / _ \\| | | |/ _` | |/ _ \\"
@@ -32,11 +32,10 @@ void app_main(void)
         "\n                |_| \\_\\___|\\__,_|\\___|\\__|"
         "\n");
 
-    // esp_log_level_set("gpio", ESP_LOG_WARN);
-    // esp_log_level_set("i2c.master", ESP_LOG_NONE);
+    esp_log_level_set("gpio", ESP_LOG_WARN);
+    esp_log_level_set("i2c.master", ESP_LOG_NONE);
     /* init application tasks */
     task_hub_tasks_create();
-    vTaskDelay(pdMS_TO_TICKS(2000));
 
     /* initialize NVS — it is used to store PHY calibration data */
     esp_err_t err = nvs_flash_init();
@@ -53,23 +52,19 @@ void app_main(void)
     /* classic bluetooth used only
        so release the controller memory for Bluetooth Low Energy */
     ERR_CHECK_RESET(esp_bt_controller_mem_release(ESP_BT_MODE_BLE));
-    vTaskDelay(pdMS_TO_TICKS(2000));
 
     esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
     ERR_CHECK_RESET(esp_bt_controller_init(&bt_cfg));
     ERR_CHECK_RESET(esp_bt_controller_enable(ESP_BT_MODE_CLASSIC_BT));
-    vTaskDelay(pdMS_TO_TICKS(2000));
 
     esp_bluedroid_config_t bluedroid_cfg = BT_BLUEDROID_INIT_CONFIG_DEFAULT();
     ERR_CHECK_RESET(esp_bluedroid_init_with_cfg(&bluedroid_cfg));
     ERR_CHECK_RESET(esp_bluedroid_enable());
-    vTaskDelay(pdMS_TO_TICKS(2000));
 
     /* init bluetooth profiles */
     bt_gap_init();
     bt_avrcp_init();
     bt_a2dp_init();
-    vTaskDelay(pdMS_TO_TICKS(2000));
     bt_gap_show();
 
     vTaskDelay(pdMS_TO_TICKS(1000));
@@ -83,8 +78,8 @@ void app_main(void)
 
 void list_tasks_stack_info()
 {
-    ESP_LOGW(TAGE, "RTOS STACK INFO");
-    ESP_LOGW(TAGE, "<taskname>: <smallest free bytes>");
+    ESP_LOGW(TAG, "RTOS STACK INFO");
+    ESP_LOGW(TAG, "<taskname>: <smallest free bytes>");
     TaskStatus_t *pxTaskStatusArray;
     volatile UBaseType_t uxArraySize, x;
     // vApplicationStackOverflowHook()

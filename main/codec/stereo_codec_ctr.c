@@ -117,7 +117,7 @@ static esp_err_t config_WM8960()
     /* waiting for capacitors discharging, to avoid pop */
     vTaskDelay(pdMS_TO_TICKS(1000));
 
-    ESP_RETURN_ON_ERROR(set_reg(R15_Reset, 0), LOG_STEREO_CODEC, "reset device failed");
+    ESP_RETURN_ON_ERROR(set_reg(R15_Reset, 0), TAGE, "reset device failed");
 
     /* used for reduce pops when change output enable/disable mode */
     set_reg(R28_AntiPop_1, BIT_ON(7) | BIT_ON(4) | BIT_ON(3) | BIT_ON(2));

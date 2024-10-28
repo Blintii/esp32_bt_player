@@ -82,8 +82,8 @@ void task_hub_tasks_create()
     s_i2c_semaphore = xSemaphoreCreateBinary();
     ERR_IF_NULL_RETURN(s_i2c_semaphore);
 
-    xTaskCreatePinnedToCore(task_hub_bt_app_process, "MainAppTask", 8000, NULL, 20, NULL, 1);
-    xTaskCreatePinnedToCore(task_hub_I2C_process, "I2C", 8000, NULL, 24, NULL, 1);
+    xTaskCreatePinnedToCore(task_hub_bt_app_process, "BT_app", 6000, NULL, 20, NULL, 1);
+    xTaskCreatePinnedToCore(task_hub_I2C_process, "I2C", 6000, NULL, 24, NULL, 1);
     task_hub_I2S_buf_init();
 }
 
@@ -105,7 +105,7 @@ void task_hub_bt_app_process()
 
 void task_hub_I2S_buf_init()
 {
-    ESP_LOGE(TAG, "I2S ringbuffer init...");
+    ESP_LOGI(TAG, "I2S ringbuffer init...");
     s_i2s_write_semaphore = xSemaphoreCreateBinary();
     ERR_IF_NULL_RETURN(s_i2s_write_semaphore);
 
@@ -113,7 +113,7 @@ void task_hub_I2S_buf_init()
     ERR_IF_NULL_RETURN(s_ringbuf_i2s);
 
     ringbuffer_mode = RINGBUFFER_MODE_READY;
-    ESP_LOGE(TAG, "I2S ringbuffer ready!");
+    ESP_LOGI(TAG, "I2S ringbuffer ready!");
 }
 
 void task_hub_I2S_create()
@@ -124,7 +124,7 @@ void task_hub_I2S_create()
         return;
     }
 
-    ESP_LOGE(TAG, "ringbuffer data empty! mode changed: RINGBUFFER_MODE_PREFETCHING");
+    ESP_LOGI(TAG, "ringbuffer data empty! mode changed: RINGBUFFER_MODE_PREFETCHING");
     ringbuffer_mode = RINGBUFFER_MODE_PREFETCHING;
 
     xTaskCreatePinnedToCore(task_hub_I2S_process, "I2STask", 8000, NULL, 22, &s_bt_i2s_task_handle, 1);
@@ -168,7 +168,7 @@ void task_hub_ringbuf_send(const uint8_t *data, size_t size)
 
         if(buf_items_size <= RINGBUF_PREFETCH_WATER_LEVEL)
         {
-            ESP_LOGE(TAG, "ringbuffer data decreased! mode changed: RINGBUFFER_MODE_PROCESSING");
+            ESP_LOGI(TAG, "ringbuffer data decreased! mode changed: RINGBUFFER_MODE_PROCESSING");
             ringbuffer_mode = RINGBUFFER_MODE_PROCESSING;
         }
 
@@ -185,7 +185,7 @@ void task_hub_ringbuf_send(const uint8_t *data, size_t size)
 
             if(buf_items_size >= RINGBUF_PREFETCH_WATER_LEVEL)
             {
-                ESP_LOGE(TAG, "ringbuffer data increased! mode changed: RINGBUFFER_MODE_PROCESSING");
+                ESP_LOGI(TAG, "ringbuffer data increased! mode changed: RINGBUFFER_MODE_PROCESSING");
                 ringbuffer_mode = RINGBUFFER_MODE_PROCESSING;
                 stereo_codec_I2S_enable_channel();
 
@@ -229,7 +229,7 @@ static void task_hub_I2S_process()
 
                 if(item_size == 0)
                 {
-                    ESP_LOGE(TAG, "ringbuffer underflowed! mode changed: RINGBUFFER_MODE_PREFETCHING");
+                    ESP_LOGI(TAG, "ringbuffer underflowed! mode changed: RINGBUFFER_MODE_PREFETCHING");
                     ringbuffer_mode = RINGBUFFER_MODE_PREFETCHING;
                     stereo_codec_I2S_disable_channel();
                     break;
@@ -253,10 +253,10 @@ static void task_hub_I2C_process()
         {
             uint8_t tmp = last_vol;
             uint8_t tmp_in_percent = tmp * 100 / 0x7f;
-            ESP_LOGE(TAG, "start volume set: %d%%", tmp_in_percent);
+            ESP_LOGI(TAG, "start volume set: %d%%", tmp_in_percent);
             stereo_codec_set_volume(tmp);
             vTaskDelay(pdMS_TO_TICKS(500));
-            ESP_LOGE(TAG, "end volume set: %d%%", tmp_in_percent);
+            ESP_LOGI(TAG, "end volume set: %d%%", tmp_in_percent);
         }
     }
 
