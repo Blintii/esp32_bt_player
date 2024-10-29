@@ -42,11 +42,27 @@ void stereo_codec_set_volume(uint8_t vol)
 
     ESP_LOGW("HP", "%d: %d", vol_i, lut_out1vol[vol_i]);
     ESP_LOGW("DAC", "%d: %d", vol_i, lut_dacvol[vol_i]);
-    set_reg(R2_LOUT1Volume, lut_out1vol[vol_i]); // set HP_L vol
-    set_reg(R3_ROUT1Volume, lut_out1vol[vol_i] | BIT_ON(8)); // set HP_R vol + vol update
+    // headphone
+    set_reg(R2_LOUT1Volume,
+            BIT_ON(7)               // zero cross volume change
+            | lut_out1vol[vol_i]);  // set HP_L vol
+    set_reg(R3_ROUT1Volume,
+            BIT_ON(8)               // vol update
+            | BIT_ON(7)             // zero cross volume change
+            | lut_out1vol[vol_i] ); // set HP_R vol
+    // DAC
+    set_reg(R10_LeftDACVolume, lut_dacvol[vol_i]); // set DAC L vol
+    set_reg(R11_RightDACVolume, lut_dacvol[vol_i] | BIT_ON(8)); // set DAC R vol, vol update
+}
 
-    // set_reg(R10_LeftDACVolume, lut_dacvol[vol_i]); // DAC vol
-    // set_reg(R11_RightDACVolume, lut_dacvol[vol_i] | BIT_ON(8)); // DAC vol, vol update
+void stereo_codec_unmute()
+{
+    set_reg(R5_ADCAndDACControl_1, 0);
+}
+
+void stereo_codec_mute()
+{
+    set_reg(R5_ADCAndDACControl_1, BIT_ON(3));
 }
 
 static void setup_I2C()
@@ -99,6 +115,8 @@ static esp_err_t set_reg(uint8_t reg, uint16_t data)
                 ESP_LOGE(TAGE, "reg %02X set failed:", reg);
                 break;
             }
+
+            vTaskDelay(pdMS_TO_TICKS(1));
         }
     }
 
@@ -141,17 +159,17 @@ static esp_err_t config_WM8960()
     set_reg(R45_LeftBypass, BIT_SH(4, 0b111)); // reduce Left Input Boost Mixer vol
     set_reg(R46_RightBypass, BIT_SH(4, 0b111)); // reduce Right Input Boost Mixer vol
 
-    set_reg(R2_LOUT1Volume, 0x78); // set HP_L -1dB vol
-    set_reg(R3_ROUT1Volume, 0x78 | BIT_ON(8)); // set HP_R -1dB vol + vol update
-    // set_reg(R2_LOUT1Volume, 0);
-    // set_reg(R3_ROUT1Volume, BIT_ON(8));
+    set_reg(R10_LeftDACVolume, 0); // DAC mute
+    set_reg(R11_RightDACVolume, BIT_ON(8)); // DAC mute, vol update
 
-    set_reg(R10_LeftDACVolume, 0xFF); // DAC max vol
-    set_reg(R11_RightDACVolume, 0xFF | BIT_ON(8)); // DAC max vol, vol update
-    // set_reg(R10_LeftDACVolume, 0);
-    // set_reg(R11_RightDACVolume, BIT_ON(8));
+    set_reg(R6_ADCAndDACControl_2,
+            BIT_ON(3)       // enable volume ramp up when unmute
+            | BIT_ON(2));   // enable soft mute slow ramp
 
-    set_reg(R5_ADCAndDACControl_1, 0); // unmute DAC
+    set_reg(R23_AdditionalControl_1,
+            BIT_ON(8)           // thermal shutdown enable
+            | BIT_SH(6, 0b11)   // 3.3V bias
+            | 1);               // enable vol update timeout clock
 
     set_reg(R47_PowerManagement_3,
             BIT_ON(3)       // LOMIX on

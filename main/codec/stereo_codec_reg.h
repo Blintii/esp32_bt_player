@@ -129,10 +129,44 @@
  *        |                 |            |     left and right channels
  *        |                 |            | 1 = Disable high pass filter on
  *        |                 |            |     left and right channels
- *        |                 |            |
  */
 #define R5_ADCAndDACControl_1 5
 
+/*
+ * R6 (06h) ADC and DAC Control (2)
+ *
+ *  bits  | label           | default    | description
+ * -------+-----------------+------------+--------------------------------------------------
+ *  8:7 - reserved
+ * -------+-----------------+------------+--------------------------------------------------
+ *  6:5   | DACPOL[1:0]     | 00         | DAC polarity control:
+ *        |                 |            | 00 = Polarity not inverted
+ *        |                 |            | 01 = DAC L inverted
+ *        |                 |            | 10 = DAC R inverted
+ *        |                 |            | 11 = DAC L and R inverted
+ * -------+-----------------+------------+--------------------------------------------------
+ *  4 - reserved
+ * -------+-----------------+------------+--------------------------------------------------
+ *  3     | DACSMM          | 0          | DAC Soft Mute Mode
+ *        |                 |            | 0 = Disabling soft-mute (DACMU=0) will cause
+ *        |                 |            | the volume to change immediately to the
+ *        |                 |            | LDACVOL / RDACVOL settings
+ *        |                 |            | 1 = Disabling soft-mute (DACMU=0) will cause
+ *        |                 |            | the volume to ramp up gradually to the
+ *        |                 |            | LDACVOL / RDACVOL settings
+ * -------+-----------------+------------+--------------------------------------------------
+ *  2     | DACMR           | 0          | DAC Soft Mute Ramp Rate
+ *        |                 |            | 0 = Fast ramp (24kHz at fs=48k, providing
+ *        |                 |            | maximum delay of 10.7ms)
+ *        |                 |            | 1 = Slow ramp (1.5kHz at fs=48k, providing
+ *        |                 |            | maximum delay of 171ms)
+ * -------+-----------------+------------+--------------------------------------------------
+ *  1     | DACSLOPE        | 0          | Selects DAC filter characteristics
+ *        |                 |            | 0 = Normal mode
+ *        |                 |            | 1 = Sloping stopband
+ * -------+-----------------+------------+--------------------------------------------------
+ *  0 - reserved
+ */
 #define R6_ADCAndDACControl_2 6
 
 /*

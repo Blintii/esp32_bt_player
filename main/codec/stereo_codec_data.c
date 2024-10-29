@@ -57,6 +57,7 @@ void stereo_codec_I2S_stop()
 {
     i2s_channel_disable(tx_chan);
     i2s_del_channel(tx_chan);
+    stereo_codec_mute();
 }
 
 void stereo_codec_I2S_write(const void *src, size_t size, uint32_t timeout_ms)
@@ -70,11 +71,13 @@ void stereo_codec_I2S_write(const void *src, size_t size, uint32_t timeout_ms)
 void stereo_codec_I2S_enable_channel()
 {
     ESP_LOGW(TAGE, "I2S channel STARTED");
-    ESP_ERROR_CHECK(i2s_channel_enable(tx_chan));
+    stereo_codec_unmute();
+    i2s_channel_enable(tx_chan);
 }
 
 void stereo_codec_I2S_disable_channel()
 {
     ESP_LOGW(TAGE, "I2S channel STOPPED");
-    ESP_ERROR_CHECK(i2s_channel_disable(tx_chan));
+    i2s_channel_disable(tx_chan);
+    stereo_codec_mute();
 }

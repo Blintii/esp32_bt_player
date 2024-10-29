@@ -1,5 +1,13 @@
 {
   "C_Cpp.intelliSenseEngine": "default",
   "idf.portWin": "COM8",
-  "idf.adapterTargetName": "esp32"
+  "idf.adapterTargetName": "esp32",
+  "files.associations": {
+    "uart.h": "c",
+    "esp_rom_uart.h": "c",
+    "app_config.h": "c",
+    "stereo_codec.h": "c",
+    "i2s_std.h": "c",
+    "gpio.h": "c"
+  }
 }

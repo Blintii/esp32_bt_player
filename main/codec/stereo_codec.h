@@ -12,6 +12,8 @@
 
 void stereo_codec_control_init();
 void stereo_codec_set_volume(uint8_t vol);
+void stereo_codec_unmute();
+void stereo_codec_mute();
 
 void stereo_codec_I2S_start();
 void stereo_codec_I2S_stop();
