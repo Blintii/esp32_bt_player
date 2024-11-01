@@ -253,10 +253,10 @@ static void task_hub_I2C_process()
         {
             uint8_t tmp = last_vol;
             uint8_t tmp_in_percent = tmp * 100 / 0x7f;
-            ESP_LOGI(TAG, "start volume set: %d%%", tmp_in_percent);
+            // ESP_LOGI(TAG, "start volume set: %d%%", tmp_in_percent);
             stereo_codec_set_volume(tmp);
             vTaskDelay(pdMS_TO_TICKS(500));
-            ESP_LOGI(TAG, "end volume set: %d%%", tmp_in_percent);
+            // ESP_LOGI(TAG, "end volume set: %d%%", tmp_in_percent);
         }
     }
 

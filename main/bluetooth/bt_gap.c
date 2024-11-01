@@ -24,25 +24,6 @@ void bt_gap_init()
     /* init bluetooth device */
     ERR_CHECK_RESET(esp_bt_gap_set_device_name(BT_DEVICE_NAME));
     ERR_CHECK_RESET(esp_bt_gap_register_callback(gap_callback));
-
-    ledc_timer_config_t ledc_cfg = {
-        .speed_mode = LEDC_LOW_SPEED_MODE,
-        .duty_resolution = LEDC_TIMER_12_BIT,
-        .timer_num = LEDC_TIMER_0,
-        .freq_hz = 100,
-        .clk_cfg = LEDC_REF_TICK
-    };
-    ERR_CHECK_RESET(ledc_timer_config(&ledc_cfg));
-
-    ledc_channel_config_t ledc_ch_cfg = {
-        .gpio_num = PIN_LED_BLUE,
-        .speed_mode = LEDC_LOW_SPEED_MODE,
-        .channel = LEDC_CHANNEL_0,
-        .intr_type = LEDC_INTR_DISABLE,
-        .timer_sel = LEDC_TIMER_0,
-        .duty = 0
-    };
-    ERR_CHECK_RESET(ledc_channel_config(&ledc_ch_cfg));
 }
 
 void bt_gap_show()

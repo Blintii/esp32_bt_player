@@ -29,6 +29,8 @@ void stereo_codec_I2S_start()
     i2s_std_config_t std_cfg = {
         .clk_cfg = {
             .sample_rate_hz = 44100,
+            /* technical reference: the analog PLL output clock source APLL_CLK
+               must be used to acquire highly accurate I2Sn_CLK and BCK */
             .clk_src = I2S_CLK_SRC_APLL,
             .mclk_multiple = I2S_MCLK_MULTIPLE_256
         },

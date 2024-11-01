@@ -65,10 +65,10 @@ static void a2dp_data_callback(const uint8_t *data, uint32_t len)
     task_hub_ringbuf_send(data, len);
 
     /* log the number every 100 packets */
-    if(++s_pkt_cnt % 100 == 0)
-    {
-        ESP_LOGI(TAG, "audio packet count: %"PRIu32, s_pkt_cnt);
-    }
+    // if(++s_pkt_cnt % 100 == 0)
+    // {
+    //     ESP_LOGI(TAG, "audio packet count: %"PRIu32, s_pkt_cnt);
+    // }
 }
 
 static void a2dp_event(uint16_t event, void *p_param)

@@ -263,7 +263,7 @@ static void avrcp_target_event(uint16_t event, void *p_param)
         }
         /* when absolute volume command from remote device set, this event comes */
         case ESP_AVRC_TG_SET_ABSOLUTE_VOLUME_CMD_EVT: {
-            ESP_LOGI(TAG, "set absolute volume: %d%%", (int)rc->set_abs_vol.volume * 100 / 0x7f);
+            // ESP_LOGI(TAG, "set absolute volume: %d%%", (int)rc->set_abs_vol.volume * 100 / 0x7f);
             volume_set_by_controller(rc->set_abs_vol.volume);
             break;
         }

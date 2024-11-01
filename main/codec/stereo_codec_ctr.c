@@ -1,7 +1,8 @@
 
-#include "driver/i2c_master.h"
+#include "driver/i2c.h"
 #include "esp_check.h"
 #include "freertos/FreeRTOS.h"
+#include "driver/gpio.h"
 
 #include "app_config.h"
 #include "app.h"
@@ -21,12 +22,12 @@ static esp_err_t config_WM8960();
 
 static const char *TAG = LOG_COLOR("95") "CODEC" LOG_RESET_COLOR;
 static const char *TAGE = LOG_COLOR("95") "CODEC" LOG_COLOR_E;
-static i2c_master_bus_handle_t bus_handle;
-static i2c_master_dev_handle_t dev_handle;
 
 
 void stereo_codec_control_init()
 {
+    gpio_set_direction(GPIO_NUM_5, GPIO_MODE_OUTPUT);
+    gpio_set_level(GPIO_NUM_5, 0);
     /* Initialize I2C peripheral */
     setup_I2C();
     /* Initialize audio codec */
@@ -41,7 +42,7 @@ void stereo_codec_set_volume(uint8_t vol)
     else vol_i = 127;
 
     ESP_LOGW("HP", "%d: %d", vol_i, lut_out1vol[vol_i]);
-    ESP_LOGW("DAC", "%d: %d", vol_i, lut_dacvol[vol_i]);
+    // ESP_LOGW("DAC", "%d: %d", vol_i, lut_dacvol[vol_i]);
     // headphone
     set_reg(R2_LOUT1Volume,
             BIT_ON(7)               // zero cross volume change
@@ -51,38 +52,36 @@ void stereo_codec_set_volume(uint8_t vol)
             | BIT_ON(7)             // zero cross volume change
             | lut_out1vol[vol_i] ); // set HP_R vol
     // DAC
-    set_reg(R10_LeftDACVolume, lut_dacvol[vol_i]); // set DAC L vol
-    set_reg(R11_RightDACVolume, lut_dacvol[vol_i] | BIT_ON(8)); // set DAC R vol, vol update
+    // set_reg(R10_LeftDACVolume, lut_dacvol[vol_i]); // set DAC L vol
+    // set_reg(R11_RightDACVolume, lut_dacvol[vol_i] | BIT_ON(8)); // set DAC R vol, vol update
 }
 
 void stereo_codec_unmute()
 {
     set_reg(R5_ADCAndDACControl_1, 0);
+    set_reg(R10_LeftDACVolume, 0xFF); // set DAC L vol
+    set_reg(R11_RightDACVolume, 0xFF | BIT_ON(8)); // set DAC R vol, vol update
 }
 
 void stereo_codec_mute()
 {
     set_reg(R5_ADCAndDACControl_1, BIT_ON(3));
+    set_reg(R10_LeftDACVolume, 0); // set DAC L vol
+    set_reg(R11_RightDACVolume, BIT_ON(8)); // set DAC R vol, vol update
 }
 
 static void setup_I2C()
 {
-    i2c_master_bus_config_t i2c_mst_config = {
-        .clk_source = I2C_CLK_SRC_DEFAULT,
-        .i2c_port = I2C_PERIPH_NUM,
-        .scl_io_num = PIN_I2C_SCL,
+    const i2c_config_t i2c_cfg = {
         .sda_io_num = PIN_I2C_SDA,
-        /* on waveshare WM8960 audio board there are 10k pullup resistors */
-        .flags.enable_internal_pullup = true
+        .scl_io_num = PIN_I2C_SCL,
+        .mode = I2C_MODE_MASTER,
+        .sda_pullup_en = GPIO_PULLUP_ENABLE,
+        .scl_pullup_en = GPIO_PULLUP_ENABLE,
+        .master.clk_speed = 577000,
     };
-    ERR_CHECK_RESET(i2c_new_master_bus(&i2c_mst_config, &bus_handle));
-
-    i2c_device_config_t dev_cfg = {
-        .dev_addr_length = I2C_ADDR_BIT_LEN_7,
-        .device_address = STEREO_CODEC_I2C_ADDRESS,
-        .scl_speed_hz = 226600
-    };
-    ERR_CHECK_RESET(i2c_master_bus_add_device(bus_handle, &dev_cfg, &dev_handle));
+    ERR_CHECK_RESET(i2c_param_config(I2C_PERIPH_NUM, &i2c_cfg));
+    ERR_CHECK_RESET(i2c_driver_install(I2C_PERIPH_NUM, I2C_MODE_MASTER, 0, 0, 0));
 }
 
 static esp_err_t set_reg(uint8_t reg, uint16_t data)
@@ -96,17 +95,18 @@ static esp_err_t set_reg(uint8_t reg, uint16_t data)
 
     while(1)
     {
-        res = i2c_master_transmit(dev_handle, write_buf, 2, 100);
+        gpio_set_level(GPIO_NUM_5, 0);
+        res = i2c_master_write_to_device(I2C_PERIPH_NUM, STEREO_CODEC_I2C_ADDRESS, write_buf, 2, pdMS_TO_TICKS(10));
 
         if(res == ESP_OK)
         {
-            if(tryN < 2) ESP_LOGI(TAG, "reg %02X set OK after %d try", reg, tryN);
-            else ESP_LOGW(TAGE, "reg %02X set OK after %d try", reg, tryN);
+            if(tryN > 1) ESP_LOGW(TAGE, "reg %02X set OK after %d try", reg, tryN);
 
             break;
         }
         else
         {
+            gpio_set_level(GPIO_NUM_5, 1);
             ESP_LOGE(TAGE, "%s", esp_err_to_name(res));
             bt_gap_led_set_fast();
 

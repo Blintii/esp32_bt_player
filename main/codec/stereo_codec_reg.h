@@ -311,8 +311,8 @@
  * -------+-----------------+------------+--------------------------------------------------
  *  1     | TOCLKSEL        | 0          | Slow Clock Select (Used for volume update
  *        |                 |            | timeouts and for jack detect debounce)
- *        |                 |            | 0 = SYSCLK / 221 (Slower Response)
- *        |                 |            | 1 = SYSCLK / 219 (Faster Response)
+ *        |                 |            | 0 = SYSCLK / 2^21 (Slower Response)
+ *        |                 |            | 1 = SYSCLK / 2^19 (Faster Response)
  * -------+-----------------+------------+--------------------------------------------------
  *  0     | TOEN            | 0          | Enables Slow Clock for Volume Update Timeout
  *        |                 |            | and Jack Detect Debounce
