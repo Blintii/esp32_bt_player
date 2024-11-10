@@ -36,8 +36,10 @@ void app_main(void)
 
     esp_log_level_set("gpio", ESP_LOG_WARN);
     esp_log_level_set("i2c.master", ESP_LOG_NONE);
+    esp_log_level_set("BT_LOG", ESP_LOG_WARN);
 
-    /* initialize NVS — it is used to store PHY calibration data */
+    /* initialize NVS — it is used to store PHY or RF modul calibration data
+       (used when WiFi or BT enabled)*/
     esp_err_t err = nvs_flash_init();
 
     if(err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND)
@@ -67,17 +69,20 @@ void app_main(void)
         .duty = 0
     };
     ERR_CHECK_RESET(ledc_channel_config(&ledc_ch_cfg));
+
     /* init application tasks */
     task_hub_tasks_create();
 
     /* classic bluetooth used only
-       so release the controller memory for Bluetooth Low Energy */
-    ERR_CHECK_RESET(esp_bt_controller_mem_release(ESP_BT_MODE_BLE));
+       so release the memory for Bluetooth Low Energy */
+    ERR_CHECK_RESET(esp_bt_mem_release(ESP_BT_MODE_BLE));
 
     esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
     ERR_CHECK_RESET(esp_bt_controller_init(&bt_cfg));
     ERR_CHECK_RESET(esp_bt_controller_enable(ESP_BT_MODE_CLASSIC_BT));
 
+    /* in ESP-IDF only 1 host available for Classic BT is bluedroid
+       (ESP32 version of native android BT stack) */
     esp_bluedroid_config_t bluedroid_cfg = BT_BLUEDROID_INIT_CONFIG_DEFAULT();
     ERR_CHECK_RESET(esp_bluedroid_init_with_cfg(&bluedroid_cfg));
     ERR_CHECK_RESET(esp_bluedroid_enable());
@@ -100,15 +105,13 @@ void app_main(void)
 void list_tasks_stack_info()
 {
     ESP_LOGW(TAG, "RTOS STACK INFO");
-    ESP_LOGW(TAG, "<taskname>: <smallest free bytes>");
     TaskStatus_t *pxTaskStatusArray;
     volatile UBaseType_t uxArraySize, x;
-    // vApplicationStackOverflowHook()
 
     /* Take a snapshot of the number of tasks in case it changes while this
         function is executing. */
     uxArraySize = uxTaskGetNumberOfTasks();
-    printf("running task count: %d\n\r", uxArraySize);
+    ESP_LOGW(TAG, "running task count: %d", uxArraySize);
 
     /* Allocate a TaskStatus_t structure for each task. An array could be
         allocated statically at compile time. */
@@ -119,7 +122,8 @@ void list_tasks_stack_info()
     {
         /* Generate raw status information about each task. */
         uxArraySize = uxTaskGetSystemState(pxTaskStatusArray, uxArraySize, NULL);
-        printf("provided info task count: %d\n\r", uxArraySize);
+        ESP_LOGW(TAG, "provided info task count: %d", uxArraySize);
+        ESP_LOGW(TAG, "<taskname>: <smallest free bytes>");
 
         /* For each populated position in the pxTaskStatusArray array,
         format the raw data as human readable ASCII data. */

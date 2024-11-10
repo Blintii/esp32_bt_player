@@ -125,7 +125,6 @@ static void avrcp_control_event(uint16_t event, void *p_param)
         }
         /* when notified, this event comes */
         case ESP_AVRC_CT_CHANGE_NOTIFY_EVT: {
-            ESP_LOGI(TAG, "event notification: %d", rc->change_ntf.event_id);
             avrcp_notify_event_handler(rc->change_ntf.event_id, &rc->change_ntf.event_parameter);
             break;
         }
@@ -157,6 +156,7 @@ static void avrcp_notify_event_handler(uint8_t event_id, esp_avrc_rn_param_t *ev
     {
         /* when new track is loaded, this event comes */
         case ESP_AVRC_RN_TRACK_CHANGE: {
+            ESP_LOGI(TAG, "track change notification event");
             avrcp_new_track_loaded();
             break;
         }
@@ -180,7 +180,7 @@ static void avrcp_notify_event_handler(uint8_t event_id, esp_avrc_rn_param_t *ev
         }
         /* others */
         default:
-            ESP_LOGI(TAG, "unhandled event: %d", event_id);
+            ESP_LOGI(TAG, "unhandled notification event: %d", event_id);
             break;
     }
 }

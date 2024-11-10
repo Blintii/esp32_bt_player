@@ -53,6 +53,7 @@ void stereo_codec_I2S_start()
     ERR_CHECK_RESET(gpio_set_drive_capability(PIN_I2S_BCLK, GPIO_DRIVE_CAP_0));
     ERR_CHECK_RESET(gpio_set_drive_capability(PIN_I2S_WS, GPIO_DRIVE_CAP_0));
     ERR_CHECK_RESET(gpio_set_drive_capability(PIN_I2S_DOUT, GPIO_DRIVE_CAP_0));
+    ESP_LOGI(TAG, "I2S channel init OK");
 }
 
 void stereo_codec_I2S_stop()
@@ -72,14 +73,14 @@ void stereo_codec_I2S_write(const void *src, size_t size, uint32_t timeout_ms)
 
 void stereo_codec_I2S_enable_channel()
 {
-    ESP_LOGW(TAGE, "I2S channel STARTED");
+    ESP_LOGW(TAG, "I2S channel STARTED");
     stereo_codec_unmute();
     i2s_channel_enable(tx_chan);
 }
 
 void stereo_codec_I2S_disable_channel()
 {
-    ESP_LOGW(TAGE, "I2S channel STOPPED");
+    ESP_LOGW(TAG, "I2S channel STOPPED");
     i2s_channel_disable(tx_chan);
     stereo_codec_mute();
 }

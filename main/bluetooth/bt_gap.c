@@ -117,7 +117,7 @@ static void gap_callback(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *par
             break;
         /* others */
         default:
-            ESP_LOGI(TAG, "event: %d", event);
+            ESP_LOGW(TAGE, "event: %d", event);
             break;
     }
 }

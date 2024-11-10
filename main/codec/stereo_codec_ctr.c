@@ -82,6 +82,7 @@ static void setup_I2C()
     };
     ERR_CHECK_RESET(i2c_param_config(I2C_PERIPH_NUM, &i2c_cfg));
     ERR_CHECK_RESET(i2c_driver_install(I2C_PERIPH_NUM, I2C_MODE_MASTER, 0, 0, 0));
+    ESP_LOGI(TAG, "I2C init OK");
 }
 
 static esp_err_t set_reg(uint8_t reg, uint16_t data)
@@ -192,5 +193,7 @@ static esp_err_t config_WM8960()
     set_reg(R25_PowerManagment_1,
             BIT_SH(7, 0b01) // playback
             | BIT_ON(6));   // VREF on
+
+    ESP_LOGI(TAG, "config OK");
     return ESP_OK;
 }

@@ -21,9 +21,7 @@ static void a2dp_event(uint16_t event, void *p_param);
 static const char *TAG = LOG_COLOR("94") "BT_A2DP";
 static const char *TAGE = LOG_COLOR("94") "BT_A2DP" LOG_COLOR_E;
 /* count for audio packet */
-static uint32_t s_pkt_cnt = 0;
-/* audio stream datapath state */
-static esp_a2d_audio_state_t s_audio_state = ESP_A2D_AUDIO_STATE_STOPPED;
+static uint32_t audio_packet_cnt = 0;
 
 
 void bt_a2dp_init()
@@ -31,13 +29,11 @@ void bt_a2dp_init()
     /* in file: \esp\esp-idf\components\bt\host\bluedroid\btc\profile\std\a2dp\bta_av_co.c
      * in row 84: removed not supported 48kHz sample freq
      * in row 85: removed not supported mono mode
+     * from "bta_av_co_sbc_sink_caps" struct
      */
     ERR_CHECK_RESET(esp_a2d_sink_init());
     esp_a2d_register_callback(&a2dp_callback);
     esp_a2d_sink_register_data_callback(a2dp_data_callback);
-
-    /* Get the default value of the delay value */
-    esp_a2d_sink_get_delay_value();
 }
 
 static void a2dp_callback(esp_a2d_cb_event_t event, esp_a2d_cb_param_t *param)
@@ -49,11 +45,8 @@ static void a2dp_callback(esp_a2d_cb_event_t event, esp_a2d_cb_param_t *param)
         case ESP_A2D_AUDIO_CFG_EVT:
         case ESP_A2D_PROF_STATE_EVT:
         case ESP_A2D_SNK_PSC_CFG_EVT:
-        case ESP_A2D_SNK_SET_DELAY_VALUE_EVT:
-        case ESP_A2D_SNK_GET_DELAY_VALUE_EVT: {
             task_hub_bt_app_work_dispatch(a2dp_event, event, param, sizeof(esp_a2d_cb_param_t));
             break;
-        }
         default:
             ESP_LOGE(TAGE, "%s unhandled event: %d", __func__, event);
             break;
@@ -65,9 +58,9 @@ static void a2dp_data_callback(const uint8_t *data, uint32_t len)
     task_hub_ringbuf_send(data, len);
 
     /* log the number every 100 packets */
-    // if(++s_pkt_cnt % 100 == 0)
+    // if(++audio_packet_cnt % 100 == 0)
     // {
-    //     ESP_LOGI(TAG, "audio packet count: %"PRIu32, s_pkt_cnt);
+    //     ESP_LOGI(TAG, "audio packet count: %"PRIu32, audio_packet_cnt);
     // }
 }
 
@@ -108,9 +101,9 @@ static void a2dp_event(uint16_t event, void *p_param)
             static const char *s_a2d_audio_state_str[] = {"Suspended", "Started"};
             a2d = (esp_a2d_cb_param_t *)(p_param);
             ESP_LOGI(TAG, "transmission stream state: %s", s_a2d_audio_state_str[a2d->audio_stat.state]);
-            s_audio_state = a2d->audio_stat.state;
+
             if (ESP_A2D_AUDIO_STATE_STARTED == a2d->audio_stat.state) {
-                s_pkt_cnt = 0;
+                audio_packet_cnt = 0;
             }
             break;
         }
@@ -152,9 +145,9 @@ static void a2dp_event(uint16_t event, void *p_param)
         case ESP_A2D_PROF_STATE_EVT: {
             a2d = (esp_a2d_cb_param_t *)(p_param);
             if (ESP_A2D_INIT_SUCCESS == a2d->a2d_prof_stat.init_state) {
-                ESP_LOGI(TAG, "PROF STATE: Init Complete");
+                ESP_LOGI(TAG, "PROFILE STATE: Init Complete");
             } else {
-                ESP_LOGI(TAG, "PROF STATE: Deinit Complete");
+                ESP_LOGI(TAG, "PROFILE STATE: Deinit Complete");
             }
             break;
         }
@@ -167,24 +160,6 @@ static void a2dp_event(uint16_t event, void *p_param)
             } else {
                 ESP_LOGI(TAG, "Peer device unsupport delay reporting");
             }
-            break;
-        }
-        /* when set delay value completed, this event comes */
-        case ESP_A2D_SNK_SET_DELAY_VALUE_EVT: {
-            a2d = (esp_a2d_cb_param_t *)(p_param);
-            if (ESP_A2D_SET_INVALID_PARAMS == a2d->a2d_set_delay_value_stat.set_state) {
-                ESP_LOGI(TAG, "Set delay report value: fail");
-            } else {
-                ESP_LOGI(TAG, "Set delay report value: success, delay_value: %u * 1/10 ms", a2d->a2d_set_delay_value_stat.delay_value);
-            }
-            break;
-        }
-        /* when get delay value completed, this event comes */
-        case ESP_A2D_SNK_GET_DELAY_VALUE_EVT: {
-            a2d = (esp_a2d_cb_param_t *)(p_param);
-            ESP_LOGI(TAG, "Get delay report value: delay_value: %u * 1/10 ms", a2d->a2d_get_delay_value_stat.delay_value);
-            /* Default delay value plus delay caused by application layer */
-            esp_a2d_sink_set_delay_value(a2d->a2d_get_delay_value_stat.delay_value + BT_A2DP_APP_DELAY_VALUE);
             break;
         }
         /* others */

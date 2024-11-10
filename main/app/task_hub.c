@@ -82,8 +82,8 @@ void task_hub_tasks_create()
     s_i2c_semaphore = xSemaphoreCreateBinary();
     ERR_IF_NULL_RETURN(s_i2c_semaphore);
 
-    xTaskCreatePinnedToCore(task_hub_bt_app_process, "BT_app", 6000, NULL, 20, NULL, 1);
-    xTaskCreatePinnedToCore(task_hub_I2C_process, "I2C", 6000, NULL, 24, NULL, 1);
+    xTaskCreatePinnedToCore(task_hub_bt_app_process, "BT_app", 6000, NULL, 10, NULL, 1);
+    xTaskCreatePinnedToCore(task_hub_I2C_process, "I2C", 6000, NULL, 12, NULL, 1);
     task_hub_I2S_buf_init();
 }
 
@@ -127,7 +127,7 @@ void task_hub_I2S_create()
     ESP_LOGI(TAG, "ringbuffer data empty! mode changed: RINGBUFFER_MODE_PREFETCHING");
     ringbuffer_mode = RINGBUFFER_MODE_PREFETCHING;
 
-    xTaskCreatePinnedToCore(task_hub_I2S_process, "I2STask", 8000, NULL, 22, &s_bt_i2s_task_handle, 1);
+    xTaskCreatePinnedToCore(task_hub_I2S_process, "I2STask", 8000, NULL, 11, &s_bt_i2s_task_handle, 1);
 }
 
 void task_hub_I2S_del()
@@ -252,7 +252,7 @@ static void task_hub_I2C_process()
         if(pdTRUE == xSemaphoreTake(s_i2c_semaphore, portMAX_DELAY))
         {
             uint8_t tmp = last_vol;
-            uint8_t tmp_in_percent = tmp * 100 / 0x7f;
+            // uint8_t tmp_in_percent = tmp * 100 / 0x7f;
             // ESP_LOGI(TAG, "start volume set: %d%%", tmp_in_percent);
             stereo_codec_set_volume(tmp);
             vTaskDelay(pdMS_TO_TICKS(500));
