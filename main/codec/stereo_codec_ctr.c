@@ -8,7 +8,7 @@
 #include "app_tools.h"
 #include "stereo_codec.h"
 #include "stereo_codec_reg.h"
-#include "bt_gap.h"
+#include "bt_profiles.h"
 
 
 #define BIT_ON(bitN)        1<<bitN

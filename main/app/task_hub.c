@@ -10,7 +10,7 @@
 #include "task_hub.h"
 #include "app_tools.h"
 #include "stereo_codec.h"
-#include "bt_gap.h"
+#include "bt_profiles.h"
 
 
 #define RINGBUF_HIGHEST_WATER_LEVEL    (40 * 1024)

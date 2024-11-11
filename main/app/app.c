@@ -10,9 +10,7 @@
 #include "app_config.h"
 #include "task_hub.h"
 #include "stereo_codec.h"
-#include "bt_gap.h"
-#include "bt_avrcp.h"
-#include "bt_a2dp.h"
+#include "bt_profiles.h"
 
 
 static const char *TAG = LOG_COLOR("37") "app";

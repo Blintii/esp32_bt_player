@@ -1,24 +1,3 @@
 {
-  "C_Cpp.intelliSenseEngine": "default",
-  "idf.portWin": "COM8",
-  "idf.adapterTargetName": "esp32",
-  "files.associations": {
-    "uart.h": "c",
-    "esp_rom_uart.h": "c",
-    "app_config.h": "c",
-    "stereo_codec.h": "c",
-    "i2s_std.h": "c",
-    "gpio.h": "c",
-    "stereo_codec_reg.h": "c",
-    "bt_gap.h": "c",
-    "app.h": "c",
-    "freertos.h": "c",
-    "esp_check.h": "c",
-    "i2c_master.h": "c",
-    "i2c.h": "c",
-    "app_tools.h": "c",
-    "esp_gap_bt_api.h": "c",
-    "bt_avrcp.h": "c",
-    "esp_avrc_api.h": "c"
-  }
+  "C_Cpp.intelliSenseEngine": "default"
 }

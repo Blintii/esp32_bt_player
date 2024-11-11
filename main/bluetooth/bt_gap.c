@@ -7,7 +7,7 @@
 #include "freertos/task.h"
 
 #include "app_config.h"
-#include "bt_gap.h"
+#include "bt_profiles.h"
 #include "app_tools.h"
 
 

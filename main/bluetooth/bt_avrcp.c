@@ -9,7 +9,7 @@
 
 #include "app_config.h"
 #include "app_tools.h"
-#include "bt_avrcp.h"
+#include "bt_profiles.h"
 #include "task_hub.h"
 #include "stereo_codec.h"
 
@@ -36,14 +36,15 @@ static uint8_t s_volume = 0;
 
 void bt_avrcp_init()
 {
-    /* controller need to init first */
+    /* controller (CT) need to init first */
     ERR_CHECK_RESET(esp_avrc_ct_init());
     ERR_CHECK_RESET(esp_avrc_ct_register_callback(avrcp_control_callback));
 
-    /* target only can init after controller init complete */
+    /* target (TG) only can init after controller init complete */
     ERR_CHECK_RESET(esp_avrc_tg_init());
     ERR_CHECK_RESET(esp_avrc_tg_register_callback(avrcp_target_callback));
 
+    /* Register Notification (RN) event set volume change */
     esp_avrc_rn_evt_cap_mask_t evt_set = {0};
     esp_avrc_rn_evt_bit_mask_operation(ESP_AVRC_BIT_MASK_OP_SET, &evt_set, ESP_AVRC_RN_VOLUME_CHANGE);
     ERR_CHECK_RESET(esp_avrc_tg_set_rn_evt_cap(&evt_set));
@@ -73,7 +74,7 @@ static void avrcp_control_callback(esp_avrc_ct_cb_event_t event, esp_avrc_ct_cb_
 static void avrcp_alloc_track_meta_buffer(esp_avrc_ct_cb_param_t *param)
 {
     esp_avrc_ct_cb_param_t *rc = (esp_avrc_ct_cb_param_t *)(param);
-    uint8_t *attr_text = (uint8_t *) malloc (rc->meta_rsp.attr_length + 1);
+    uint8_t *attr_text = (uint8_t *) malloc(rc->meta_rsp.attr_length + 1);
 
     memcpy(attr_text, rc->meta_rsp.attr_text, rc->meta_rsp.attr_length);
     attr_text[rc->meta_rsp.attr_length] = 0;
@@ -138,9 +139,6 @@ static void avrcp_control_event(uint16_t event, void *p_param)
             ESP_LOGI(TAG, "remote rn_cap: count %d, bitmask 0x%X", rc->get_rn_caps_rsp.cap_count,
                         rc->get_rn_caps_rsp.evt_set.bits);
             s_avrc_peer_rn_cap.bits = rc->get_rn_caps_rsp.evt_set.bits;
-            avrcp_new_track_loaded();
-            avrcp_playback_status_changed();
-            avrcp_play_pos_changed();
             break;
         }
         default:

@@ -8,9 +8,8 @@
 #include "app_config.h"
 #include "app_tools.h"
 #include "task_hub.h"
-#include "bt_a2dp.h"
+#include "bt_profiles.h"
 #include "stereo_codec.h"
-#include "bt_gap.h"
 
 
 static void a2dp_callback(esp_a2d_cb_event_t event, esp_a2d_cb_param_t *param);
