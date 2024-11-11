@@ -8,7 +8,7 @@
 
 #include "app_config.h"
 #include "bt_gap.h"
-#include "app.h"
+#include "app_tools.h"
 
 
 static void gap_led_cfg(uint32_t clk_div, uint32_t duty);

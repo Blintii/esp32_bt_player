@@ -6,7 +6,7 @@
 #include "esp_bt_main.h"
 #include "driver/ledc.h"
 
-#include "app.h"
+#include "app_tools.h"
 #include "app_config.h"
 #include "task_hub.h"
 #include "stereo_codec.h"

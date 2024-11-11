@@ -1,5 +1,5 @@
 /*
- * AVRCP handler (Audio/Video Remote Control Profile)
+ * Bluetooth AVRCP handler (Audio/Video Remote Control Profile)
  */
 
 #ifndef __BT_AVRCP_H__

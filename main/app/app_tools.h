@@ -1,9 +1,9 @@
-/* Created: 2024.10.08.
- * By: Blinti
+/*
+ * Application logging helper tools
  */
 
-#ifndef __APP_H__
-#define __APP_H__
+#ifndef __APP_TOOLS_H__
+#define __APP_TOOLS_H__
 
 
 #include "esp_log.h"
@@ -80,6 +80,8 @@
         printf("\n");                       \
     } while(0)
 
+
 void list_tasks_stack_info();
 
-#endif /* __APP_H__ */
+
+#endif /* __APP_TOOLS_H__ */

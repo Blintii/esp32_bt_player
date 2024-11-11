@@ -8,7 +8,7 @@
 
 #include "app_config.h"
 #include "task_hub.h"
-#include "app.h"
+#include "app_tools.h"
 #include "stereo_codec.h"
 #include "bt_gap.h"
 

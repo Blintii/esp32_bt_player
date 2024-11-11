@@ -5,7 +5,7 @@
 #include "driver/gpio.h"
 
 #include "app_config.h"
-#include "app.h"
+#include "app_tools.h"
 #include "stereo_codec.h"
 #include "stereo_codec_reg.h"
 #include "bt_gap.h"
@@ -97,7 +97,7 @@ static esp_err_t set_reg(uint8_t reg, uint16_t data)
     while(1)
     {
         gpio_set_level(GPIO_NUM_5, 0);
-        res = i2c_master_write_to_device(I2C_PERIPH_NUM, STEREO_CODEC_I2C_ADDRESS, write_buf, 2, pdMS_TO_TICKS(10));
+        res = i2c_master_write_to_device(I2C_PERIPH_NUM, I2C_ADDRESS_CODEC, write_buf, 2, pdMS_TO_TICKS(10));
 
         if(res == ESP_OK)
         {

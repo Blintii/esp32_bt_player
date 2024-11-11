@@ -8,7 +8,7 @@
 #include "freertos/task.h"
 
 #include "app_config.h"
-#include "app.h"
+#include "app_tools.h"
 #include "bt_avrcp.h"
 #include "task_hub.h"
 #include "stereo_codec.h"
@@ -60,12 +60,12 @@ static void avrcp_control_callback(esp_avrc_ct_cb_event_t event, esp_avrc_ct_cb_
         case ESP_AVRC_CT_PASSTHROUGH_RSP_EVT:
         case ESP_AVRC_CT_CHANGE_NOTIFY_EVT:
         case ESP_AVRC_CT_REMOTE_FEATURES_EVT:
-        case ESP_AVRC_CT_GET_RN_CAPABILITIES_RSP_EVT: {
+        case ESP_AVRC_CT_GET_RN_CAPABILITIES_RSP_EVT:
             task_hub_bt_app_work_dispatch(avrcp_control_event, event, param, sizeof(esp_avrc_ct_cb_param_t));
             break;
-        }
         default:
-            ESP_LOGE(TAGE, "%s unhandled event: %d", __func__, event);
+            ESP_LOGE(TAGE, "unhandled event: %d", event);
+            ERR_CHECK(false);
             break;
     }
 }
@@ -143,16 +143,16 @@ static void avrcp_control_event(uint16_t event, void *p_param)
             avrcp_play_pos_changed();
             break;
         }
-        /* others */
         default:
-            ESP_LOGE(TAGE, "%s unhandled event: %d", __func__, event);
+            ESP_LOGE(TAGE, "unhandled event: %d", event);
+            ERR_CHECK(false);
             break;
     }
 }
 
-static void avrcp_notify_event_handler(uint8_t event_id, esp_avrc_rn_param_t *event_parameter)
+static void avrcp_notify_event_handler(uint8_t event, esp_avrc_rn_param_t *event_parameter)
 {
-    switch (event_id)
+    switch (event)
     {
         /* when new track is loaded, this event comes */
         case ESP_AVRC_RN_TRACK_CHANGE: {
@@ -178,9 +178,9 @@ static void avrcp_notify_event_handler(uint8_t event_id, esp_avrc_rn_param_t *ev
             avrcp_play_pos_changed();
             break;
         }
-        /* others */
         default:
-            ESP_LOGI(TAG, "unhandled notification event: %d", event_id);
+            ESP_LOGE(TAGE, "unhandled event: %d", event);
+            ERR_CHECK(false);
             break;
     }
 }
@@ -238,7 +238,8 @@ static void avrcp_target_callback(esp_avrc_tg_cb_event_t event, esp_avrc_tg_cb_p
             task_hub_bt_app_work_dispatch(avrcp_target_event, event, param, sizeof(esp_avrc_tg_cb_param_t));
             break;
         default:
-            ESP_LOGE(TAGE, "%s unhandled event: %d", __func__, event);
+            ESP_LOGE(TAGE, "unhandled event: %d", event);
+            ERR_CHECK(false);
             break;
     }
 }
@@ -282,9 +283,9 @@ static void avrcp_target_event(uint16_t event, void *p_param)
             ESP_LOGI(TAG, "remote features: %lX, CT features: %X", rc->rmt_feats.feat_mask, rc->rmt_feats.ct_feat_flag);
             break;
         }
-        /* others */
         default:
-            ESP_LOGE(TAGE, "%s unhandled event: %d", __func__, event);
+            ESP_LOGE(TAGE, "unhandled event: %d", event);
+            ERR_CHECK(false);
             break;
     }
 }

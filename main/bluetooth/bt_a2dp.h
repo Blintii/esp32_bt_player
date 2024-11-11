@@ -1,5 +1,5 @@
 /*
- * A2DP handler (Advanced Audio Distribution Profile)
+ * Bluetooth A2DP handler (Advanced Audio Distribution Profile)
  */
 
 #ifndef __BT_A2DP_H__

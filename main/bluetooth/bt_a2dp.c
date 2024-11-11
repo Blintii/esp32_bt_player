@@ -6,7 +6,7 @@
 #include "freertos/task.h"
 
 #include "app_config.h"
-#include "app.h"
+#include "app_tools.h"
 #include "task_hub.h"
 #include "bt_a2dp.h"
 #include "stereo_codec.h"
@@ -48,7 +48,8 @@ static void a2dp_callback(esp_a2d_cb_event_t event, esp_a2d_cb_param_t *param)
             task_hub_bt_app_work_dispatch(a2dp_event, event, param, sizeof(esp_a2d_cb_param_t));
             break;
         default:
-            ESP_LOGE(TAGE, "%s unhandled event: %d", __func__, event);
+            ESP_LOGE(TAGE, "unhandled event: %d", event);
+            ERR_CHECK(false);
             break;
     }
 }
@@ -162,9 +163,9 @@ static void a2dp_event(uint16_t event, void *p_param)
             }
             break;
         }
-        /* others */
         default:
-            ESP_LOGE(TAGE, "%s unhandled event: %d", __func__, event);
+            ESP_LOGE(TAGE, "unhandled event: %d", event);
+            ERR_CHECK(false);
             break;
     }
 }
