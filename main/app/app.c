@@ -37,7 +37,7 @@ void app_main(void)
     esp_log_level_set("BT_LOG", ESP_LOG_WARN);
 
     /* initialize NVS — it is used to store PHY or RF modul calibration data
-       (used when WiFi or BT enabled)*/
+     * (used when WiFi or BT enabled)*/
     esp_err_t err = nvs_flash_init();
 
     if(err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND)
@@ -72,15 +72,18 @@ void app_main(void)
     task_hub_tasks_create();
 
     /* classic bluetooth used only
-       so release the memory for Bluetooth Low Energy */
+     * so release the memory for Bluetooth Low Energy */
     ERR_CHECK_RESET(esp_bt_mem_release(ESP_BT_MODE_BLE));
 
+    /* BR/EDR configured in ESP menuconfig:
+     *  BR: Basic Rate,
+     *  EDR: Enhanced Data Rate */
     esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
     ERR_CHECK_RESET(esp_bt_controller_init(&bt_cfg));
     ERR_CHECK_RESET(esp_bt_controller_enable(ESP_BT_MODE_CLASSIC_BT));
 
     /* in ESP-IDF only 1 host available for Classic BT is bluedroid
-       (ESP32 version of native android BT stack) */
+     * (ESP32 version of native android BT stack) */
     esp_bluedroid_config_t bluedroid_cfg = BT_BLUEDROID_INIT_CONFIG_DEFAULT();
     ERR_CHECK_RESET(esp_bluedroid_init_with_cfg(&bluedroid_cfg));
     ERR_CHECK_RESET(esp_bluedroid_enable());

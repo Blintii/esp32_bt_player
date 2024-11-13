@@ -14,7 +14,6 @@
 
 static void a2dp_callback(esp_a2d_cb_event_t event, esp_a2d_cb_param_t *param);
 static void a2dp_data_callback(const uint8_t *data, uint32_t len);
-static void a2dp_event(uint16_t event, void *p_param);
 
 
 static const char *TAG = LOG_COLOR("94") "BT_A2DP";
@@ -30,66 +29,35 @@ void bt_a2dp_init()
      * in row 85: removed not supported mono mode
      * from "bta_av_co_sbc_sink_caps" struct
      */
+    ERR_CHECK_RESET(esp_a2d_register_callback(a2dp_callback));
+    ERR_CHECK_RESET(esp_a2d_sink_register_data_callback(a2dp_data_callback));
     ERR_CHECK_RESET(esp_a2d_sink_init());
-    esp_a2d_register_callback(&a2dp_callback);
-    esp_a2d_sink_register_data_callback(a2dp_data_callback);
 }
 
 static void a2dp_callback(esp_a2d_cb_event_t event, esp_a2d_cb_param_t *param)
 {
-    switch (event)
-    {
-        case ESP_A2D_CONNECTION_STATE_EVT:
-        case ESP_A2D_AUDIO_STATE_EVT:
-        case ESP_A2D_AUDIO_CFG_EVT:
-        case ESP_A2D_PROF_STATE_EVT:
-        case ESP_A2D_SNK_PSC_CFG_EVT:
-            task_hub_bt_app_work_dispatch(a2dp_event, event, param, sizeof(esp_a2d_cb_param_t));
-            break;
-        default:
-            ESP_LOGE(TAGE, "unhandled event: %d", event);
-            ERR_CHECK(false);
-            break;
-    }
-}
-
-static void a2dp_data_callback(const uint8_t *data, uint32_t len)
-{
-    task_hub_ringbuf_send(data, len);
-
-    /* log the number every 100 packets */
-    // if(++audio_packet_cnt % 100 == 0)
-    // {
-    //     ESP_LOGI(TAG, "audio packet count: %"PRIu32, audio_packet_cnt);
-    // }
-}
-
-static void a2dp_event(uint16_t event, void *p_param)
-{
-    esp_a2d_cb_param_t *a2d = NULL;
-
     switch(event)
     {
         /* when connection state changed, this event comes */
         case ESP_A2D_CONNECTION_STATE_EVT: {
             /* connection state in string */
-            static const char *s_a2d_conn_state_str[] = {"Disconnected", "Connecting", "Connected", "Disconnecting"};
-            a2d = (esp_a2d_cb_param_t *)(p_param);
-            uint8_t *bda = a2d->conn_stat.remote_bda;
-            ESP_LOGI(TAG, "connection state: %s, [%02x:%02x:%02x:%02x:%02x:%02x]",
-                s_a2d_conn_state_str[a2d->conn_stat.state], bda[0], bda[1], bda[2], bda[3], bda[4], bda[5]);
+            static const char *conn_state_str[] = {"disconnected", "connecting", "connected", "disconnecting"};
+            uint8_t *bda = param->conn_stat.remote_bda;
+            ESP_LOGI(TAG, "connection state: %s, [%02X:%02X:%02X:%02X:%02X:%02X]",
+                conn_state_str[param->conn_stat.state], bda[0], bda[1], bda[2], bda[3], bda[4], bda[5]);
 
-            if(a2d->conn_stat.state == ESP_A2D_CONNECTION_STATE_DISCONNECTED)
+            if(param->conn_stat.state == ESP_A2D_CONNECTION_STATE_DISCONNECTED)
             {
                 bt_gap_show();
                 task_hub_I2S_del();
+                list_tasks_stack_info();
             }
-            else if(a2d->conn_stat.state == ESP_A2D_CONNECTION_STATE_CONNECTED)
+            else if(param->conn_stat.state == ESP_A2D_CONNECTION_STATE_CONNECTED)
             {
                 bt_gap_hide();
                 task_hub_I2S_create();
             }
-            else if(a2d->conn_stat.state == ESP_A2D_CONNECTION_STATE_CONNECTING)
+            else if(param->conn_stat.state == ESP_A2D_CONNECTION_STATE_CONNECTING)
             {
             }
 
@@ -98,36 +66,33 @@ static void a2dp_event(uint16_t event, void *p_param)
         /* when audio stream transmission state changed, this event comes */
         case ESP_A2D_AUDIO_STATE_EVT: {
             /* audio stream datapath state in string */
-            static const char *s_a2d_audio_state_str[] = {"Suspended", "Started"};
-            a2d = (esp_a2d_cb_param_t *)(p_param);
-            ESP_LOGI(TAG, "transmission stream state: %s", s_a2d_audio_state_str[a2d->audio_stat.state]);
+            static const char *audio_state_str[] = {"suspend", "started"};
+            ESP_LOGI(TAG, "transmission stream state: %s", audio_state_str[param->audio_stat.state]);
 
-            if (ESP_A2D_AUDIO_STATE_STARTED == a2d->audio_stat.state) {
+            if(ESP_A2D_AUDIO_STATE_STARTED == param->audio_stat.state)
+            {
                 audio_packet_cnt = 0;
             }
+
             break;
         }
         /* when audio codec is configured, this event comes */
         case ESP_A2D_AUDIO_CFG_EVT: {
-            a2d = (esp_a2d_cb_param_t *)(p_param);
             /* for now only SBC stream is supported */
-            if(a2d->audio_cfg.mcc.type == ESP_A2D_MCT_SBC)
+            if(param->audio_cfg.mcc.type == ESP_A2D_MCT_SBC)
             {
                 ESP_LOGI(TAG, "incoming audio stream codec: SBC");
                 int sample_rate = 16000;
-                char oct0 = a2d->audio_cfg.mcc.cie.sbc[0];
+                uint8_t *sbc = param->audio_cfg.mcc.cie.sbc;
+                char oct0 = sbc[0];
 
-                if (oct0 & (0x01 << 6)) sample_rate = 32000;
+                if(oct0 & (0x01 << 6)) sample_rate = 32000;
                 else if(oct0 & (0x01 << 5)) sample_rate = 44100;
                 else if(oct0 & (0x01 << 4)) sample_rate = 48000;
 
                 if(oct0 & (0x01 << 3)) ESP_LOGE(TAGE, "NOT SUPPORTED channel mode: mono");
 
-                ESP_LOGI(TAG, "configure SBC codec: %x-%x-%x-%x",
-                                    a2d->audio_cfg.mcc.cie.sbc[0],
-                                    a2d->audio_cfg.mcc.cie.sbc[1],
-                                    a2d->audio_cfg.mcc.cie.sbc[2],
-                                    a2d->audio_cfg.mcc.cie.sbc[3]);
+                ESP_LOGI(TAG, "SBC media codec capabilities: 0x %X %X %X %X", sbc[0], sbc[1], sbc[2], sbc[3]);
 
                 if(sample_rate != 44100)
                 {
@@ -136,35 +101,59 @@ static void a2dp_event(uint16_t event, void *p_param)
             }
             else
             {
-                ESP_LOGE(TAGE, "NOT SUPPORTED incoming audio stream codec: %d", a2d->audio_cfg.mcc.type);
+                ESP_LOGE(TAGE, "NOT SUPPORTED incoming audio stream codec: 0x%X", param->audio_cfg.mcc.type);
             }
 
             break;
         }
         /* when a2dp init or deinit completed, this event comes */
         case ESP_A2D_PROF_STATE_EVT: {
-            a2d = (esp_a2d_cb_param_t *)(p_param);
-            if (ESP_A2D_INIT_SUCCESS == a2d->a2d_prof_stat.init_state) {
-                ESP_LOGI(TAG, "PROFILE STATE: Init Complete");
-            } else {
-                ESP_LOGI(TAG, "PROFILE STATE: Deinit Complete");
+            if(param->a2d_prof_stat.init_state == ESP_A2D_INIT_SUCCESS)
+            {
+                ESP_LOGI(TAG, "profile state: init success");
             }
+            else
+            {
+                ESP_LOGI(TAG, "profile state: deinit success");
+            }
+
             break;
         }
         /* When protocol service capabilities configured, this event comes */
         case ESP_A2D_SNK_PSC_CFG_EVT: {
-            a2d = (esp_a2d_cb_param_t *)(p_param);
-            ESP_LOGI(TAG, "protocol service capabilities configured: 0x%x ", a2d->a2d_psc_cfg_stat.psc_mask);
-            if (a2d->a2d_psc_cfg_stat.psc_mask & ESP_A2D_PSC_DELAY_RPT) {
-                ESP_LOGI(TAG, "Peer device support delay reporting");
-            } else {
-                ESP_LOGI(TAG, "Peer device unsupport delay reporting");
+            ESP_LOGI(TAG, "protocol service capabilities configured: 0x%x ", param->a2d_psc_cfg_stat.psc_mask);
+
+            if(param->a2d_psc_cfg_stat.psc_mask & ESP_A2D_PSC_DELAY_RPT)
+            {
+                ESP_LOGI(TAG, "peer device support delay reporting");
             }
+            else
+            {
+                ESP_LOGI(TAG, "peer device unsupport delay reporting");
+            }
+
             break;
         }
         default:
             ESP_LOGE(TAGE, "unhandled event: %d", event);
-            ERR_CHECK(false);
+            ERR_CHECK(true);
             break;
     }
+}
+
+static void a2dp_data_callback(const uint8_t *data, uint32_t len)
+{
+    task_hub_ringbuf_send(data, len);
+
+    if(!audio_packet_cnt)
+    {
+        audio_packet_cnt = 1;
+        ESP_LOGW(TAG, "first audio packet received");
+    }
+
+    /* log the number every 100 packets */
+    // if(++audio_packet_cnt % 100 == 0)
+    // {
+    //     ESP_LOGI(TAG, "audio packet count: %"PRIu32, audio_packet_cnt);
+    // }
 }

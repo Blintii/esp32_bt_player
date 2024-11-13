@@ -53,7 +53,9 @@ void stereo_codec_I2S_start()
     ERR_CHECK_RESET(gpio_set_drive_capability(PIN_I2S_BCLK, GPIO_DRIVE_CAP_0));
     ERR_CHECK_RESET(gpio_set_drive_capability(PIN_I2S_WS, GPIO_DRIVE_CAP_0));
     ERR_CHECK_RESET(gpio_set_drive_capability(PIN_I2S_DOUT, GPIO_DRIVE_CAP_0));
-    ESP_LOGI(TAG, "I2S channel init OK");
+    i2s_chan_info_t info;
+    i2s_channel_get_info(tx_chan, &info);
+    ESP_LOGI(TAG, "I2S channel init OK with buf size: %ld", info.total_dma_buf_size);
 }
 
 void stereo_codec_I2S_stop()
@@ -63,11 +65,14 @@ void stereo_codec_I2S_stop()
     stereo_codec_mute();
 }
 
-void stereo_codec_I2S_write(const void *src, size_t size, uint32_t timeout_ms)
+void stereo_codec_I2S_write(const void *src, size_t size)
 {
-    if(ESP_OK != i2s_channel_write(tx_chan, src, size, NULL, timeout_ms))
+    size_t done = 0;
+    esp_err_t err = i2s_channel_write(tx_chan, src, size, &done, 500);
+
+    if((err != ESP_OK) || (done != size))
     {
-        ESP_LOGE(TAGE, "I2S channel write failed");
+        ESP_LOGE(TAGE, "I2S channel write: %s, %d/%d", esp_err_to_name(err), done, size);
     }
 }
 
