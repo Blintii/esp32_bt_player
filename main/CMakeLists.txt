@@ -1,7 +1,7 @@
 # /main mappán belül megadható mappában lévő
 # összes .c és .h fájlokat keres és mindet
 # bele fogja buildelni a projektbe
-set(ALL_PROJECT_DIRS "./app" "./bluetooth" "./codec" "./hotspot")
+set(ALL_PROJECT_DIRS "./app" "./bluetooth" "./codec" "./light" "./hotspot")
 
 idf_component_register(SRC_DIRS ${ALL_PROJECT_DIRS}
                         INCLUDE_DIRS ${ALL_PROJECT_DIRS})

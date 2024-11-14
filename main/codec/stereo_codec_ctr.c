@@ -9,6 +9,7 @@
 #include "stereo_codec.h"
 #include "stereo_codec_reg.h"
 #include "bt_profiles.h"
+#include "led_std.h"
 
 
 #define BIT_ON(bitN)        1<<bitN
@@ -109,7 +110,7 @@ static esp_err_t set_reg(uint8_t reg, uint16_t data)
         {
             gpio_set_level(GPIO_NUM_5, 1);
             ESP_LOGE(TAGE, "%s", esp_err_to_name(res));
-            bt_gap_led_set_fast();
+            led_std_set(LED_STD_MODE_FAST);
 
             if(++tryN > 15)
             {

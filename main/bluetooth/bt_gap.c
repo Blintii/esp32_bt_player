@@ -9,9 +9,9 @@
 #include "app_config.h"
 #include "bt_profiles.h"
 #include "app_tools.h"
+#include "led_std.h"
 
 
-static void gap_led_cfg(uint32_t clk_div, uint32_t duty);
 static void gap_callback(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param);
 
 
@@ -28,37 +28,16 @@ void bt_gap_init()
 
 void bt_gap_show()
 {
-    gap_led_cfg(66000, 900);
+    led_std_set(LED_STD_MODE_SLOW);
     esp_bt_gap_set_scan_mode(ESP_BT_CONNECTABLE, ESP_BT_GENERAL_DISCOVERABLE);
     ESP_LOGI(TAG, "device discoverable and connectable");
 }
 
 void bt_gap_hide()
 {
-    gap_led_cfg(21000, 2047);
+    led_std_set(LED_STD_MODE_FAST);
     esp_bt_gap_set_scan_mode(ESP_BT_NON_CONNECTABLE, ESP_BT_NON_DISCOVERABLE);
     ESP_LOGI(TAG, "device not discoverable and not connectable anymore");
-}
-
-void bt_gap_led_set_fast()
-{
-    gap_led_cfg(21000, 2047);
-}
-
-void bt_gap_led_set_weak()
-{
-    gap_led_cfg(256, 200);
-}
-
-/* 3906 div, 16bit: 1Hz
- * 62500 div, 12bit: 1Hz
- * 625 div, 12bit: 100Hz */
-static void gap_led_cfg(uint32_t clk_div, uint32_t duty)
-{
-    ledc_set_duty_with_hpoint(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, duty, 0);
-    ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0);
-    ledc_timer_set(LEDC_LOW_SPEED_MODE, LEDC_TIMER_0, clk_div, LEDC_TIMER_12_BIT, LEDC_REF_TICK);
-    ledc_timer_rst(LEDC_LOW_SPEED_MODE, LEDC_TIMER_0);
 }
 
 static void gap_callback(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param)

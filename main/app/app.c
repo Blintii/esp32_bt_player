@@ -4,17 +4,17 @@
 #include "esp_bt.h"
 #include "esp_bt_device.h"
 #include "esp_bt_main.h"
-#include "driver/ledc.h"
 
 #include "app_tools.h"
 #include "app_config.h"
 #include "task_hub.h"
 #include "stereo_codec.h"
 #include "bt_profiles.h"
+#include "led_std.h"
 
 
-static const char *TAG = LOG_COLOR("37") "app";
-static const char *TAGE = LOG_COLOR("37") "app" LOG_COLOR_E;
+static const char *TAG = LOG_COLOR("37") "APP";
+static const char *TAGE = LOG_COLOR("37") "APP" LOG_COLOR_E;
 
 
 void app_main(void)
@@ -33,7 +33,6 @@ void app_main(void)
         "\n");
 
     esp_log_level_set("gpio", ESP_LOG_WARN);
-    esp_log_level_set("i2c.master", ESP_LOG_NONE);
     esp_log_level_set("BT_LOG", ESP_LOG_WARN);
 
     /* initialize NVS — it is used to store PHY or RF modul calibration data
@@ -48,25 +47,7 @@ void app_main(void)
     }
 
     ERR_CHECK_RESET(err);
-
-    ledc_timer_config_t ledc_cfg = {
-        .speed_mode = LEDC_LOW_SPEED_MODE,
-        .duty_resolution = LEDC_TIMER_12_BIT,
-        .timer_num = LEDC_TIMER_0,
-        .freq_hz = 100,
-        .clk_cfg = LEDC_REF_TICK
-    };
-    ERR_CHECK_RESET(ledc_timer_config(&ledc_cfg));
-
-    ledc_channel_config_t ledc_ch_cfg = {
-        .gpio_num = PIN_LED_BLUE,
-        .speed_mode = LEDC_LOW_SPEED_MODE,
-        .channel = LEDC_CHANNEL_0,
-        .intr_type = LEDC_INTR_DISABLE,
-        .timer_sel = LEDC_TIMER_0,
-        .duty = 0
-    };
-    ERR_CHECK_RESET(ledc_channel_config(&ledc_ch_cfg));
+    led_std_init();
 
     /* init application tasks */
     task_hub_tasks_create();

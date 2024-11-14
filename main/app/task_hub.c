@@ -11,6 +11,7 @@
 #include "app_tools.h"
 #include "stereo_codec.h"
 #include "bt_profiles.h"
+#include "led_std.h"
 
 
 #define RINGBUF_SIZE (40 * 1024)
@@ -29,8 +30,8 @@ static void task_hub_I2S_process();
 static void task_hub_I2C_process();
 
 
-static const char *TAG = LOG_COLOR("91") "task" LOG_RESET_COLOR;
-static const char *TAGE = LOG_COLOR("91") "task" LOG_COLOR_E;
+static const char *TAG = LOG_COLOR("91") "TASK" LOG_RESET_COLOR;
+static const char *TAGE = LOG_COLOR("91") "TASK" LOG_COLOR_E;
 /* handle of I2S task */
 static TaskHandle_t i2s_task = NULL;
 /* handle of ringbuffer for I2S */
@@ -62,14 +63,14 @@ void task_hub_I2S_buf_init()
     ERR_IF_NULL_RETURN(i2s_ringbuf);
 
     i2s_ringbuf_state = RINGBUF_STATE_READY;
-    ESP_LOGI(TAG, "ringbuf state changed: READY");
+    ESP_LOGI(TAG, "ringbuf state set: READY");
 }
 
 void task_hub_I2S_create()
 {
     ERR_CHECK_RETURN(i2s_ringbuf_state != RINGBUF_STATE_READY);
 
-    ESP_LOGI(TAG, "ringbuf state changed: PRELOAD");
+    ESP_LOGI(TAG, "ringbuf state set: PRELOAD");
     i2s_ringbuf_state = RINGBUF_STATE_PRELOAD;
 
     xTaskCreatePinnedToCore(task_hub_I2S_process, "I2STask", 8000, NULL, 11, &i2s_task, 1);
@@ -78,7 +79,7 @@ void task_hub_I2S_create()
 void task_hub_I2S_del()
 {
     i2s_ringbuf_state = RINGBUF_STATE_INIT;
-    ESP_LOGI(TAG, "ringbuf state changed: INIT");
+    ESP_LOGI(TAG, "ringbuf state set: INIT");
     stereo_codec_I2S_stop();
 
     if(i2s_task)
@@ -114,7 +115,7 @@ void task_hub_ringbuf_send(const uint8_t *data, size_t size)
 
         if(buf_items_size <= RINGBUF_TRIGGER_LEVEL)
         {
-            ESP_LOGI(TAG, "ringbuf healed, state changed: PLAY");
+            ESP_LOGI(TAG, "ringbuf healed, state set: PLAY");
             ESP_LOGI(TAG, "dropped bytes: %d", dropped_bytes);
             i2s_ringbuf_state = RINGBUF_STATE_PLAY;
         }
@@ -132,9 +133,9 @@ void task_hub_ringbuf_send(const uint8_t *data, size_t size)
 
             if(buf_items_size >= RINGBUF_TRIGGER_LEVEL)
             {
-                ESP_LOGI(TAG, "ringbuf triggered, state changed: PLAY");
-                i2s_ringbuf_state = RINGBUF_STATE_PLAY;
+                ESP_LOGI(TAG, "ringbuf triggered, state set: PLAY");
                 stereo_codec_I2S_enable_channel();
+                i2s_ringbuf_state = RINGBUF_STATE_PLAY;
 
                 if(pdFALSE == xSemaphoreGive(i2s_tx_semaphore))
                 {
@@ -145,7 +146,7 @@ void task_hub_ringbuf_send(const uint8_t *data, size_t size)
     }
     else
     {
-        ESP_LOGW(TAGE, "ringbuf overflowed, state changed: DROP");
+        ESP_LOGW(TAGE, "ringbuf overflowed, state set: DROP");
         i2s_ringbuf_state = RINGBUF_STATE_DROP;
         dropped_bytes = 0;
     }
@@ -154,7 +155,7 @@ void task_hub_ringbuf_send(const uint8_t *data, size_t size)
 static void task_hub_I2S_process()
 {
     stereo_codec_I2S_start();
-    bt_gap_led_set_weak();
+    led_std_set(LED_STD_MODE_DIM);
 
     uint8_t *data;
     size_t item_size;
@@ -177,7 +178,7 @@ static void task_hub_I2S_process()
 
                 if(item_size == 0)
                 {
-                    ESP_LOGI(TAG, "ringbuf underflowed, state changed: PRELOAD");
+                    ESP_LOGI(TAG, "ringbuf underflowed, state set: PRELOAD");
                     i2s_ringbuf_state = RINGBUF_STATE_PRELOAD;
                     stereo_codec_I2S_disable_channel();
                     break;

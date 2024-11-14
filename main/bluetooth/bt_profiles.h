@@ -12,8 +12,6 @@
 void bt_gap_init();
 void bt_gap_show();
 void bt_gap_hide();
-void bt_gap_led_set_weak();
-void bt_gap_led_set_fast();
 
 
 /*
