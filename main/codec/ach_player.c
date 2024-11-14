@@ -6,7 +6,7 @@
 
 #include "app_config.h"
 #include "app_tools.h"
-#include "stereo_codec.h"
+#include "ach.h"
 
 
 static const char *TAG = LOG_COLOR("95") "CODEC" LOG_RESET_COLOR;
@@ -14,7 +14,7 @@ static const char *TAGE = LOG_COLOR("95") "CODEC" LOG_COLOR_E;
 static i2s_chan_handle_t tx_chan = NULL;
 
 
-void stereo_codec_I2S_start()
+void ach_I2S_start()
 {
     i2s_chan_config_t chan_cfg = {
         .id = I2S_PERIPH_NUM,
@@ -58,14 +58,14 @@ void stereo_codec_I2S_start()
     ESP_LOGI(TAG, "I2S channel init OK with buf size: %ld", info.total_dma_buf_size);
 }
 
-void stereo_codec_I2S_stop()
+void ach_I2S_stop()
 {
     i2s_channel_disable(tx_chan);
     i2s_del_channel(tx_chan);
-    stereo_codec_mute();
+    ach_mute();
 }
 
-void stereo_codec_I2S_write(const void *src, size_t size)
+void ach_I2S_write(const void *src, size_t size)
 {
     size_t done = 0;
     esp_err_t err = i2s_channel_write(tx_chan, src, size, &done, 500);
@@ -76,16 +76,16 @@ void stereo_codec_I2S_write(const void *src, size_t size)
     }
 }
 
-void stereo_codec_I2S_enable_channel()
+void ach_I2S_enable_channel()
 {
     ESP_LOGW(TAG, "I2S channel STARTED");
-    stereo_codec_unmute();
+    ach_unmute();
     i2s_channel_enable(tx_chan);
 }
 
-void stereo_codec_I2S_disable_channel()
+void ach_I2S_disable_channel()
 {
     ESP_LOGW(TAG, "I2S channel STOPPED");
     i2s_channel_disable(tx_chan);
-    stereo_codec_mute();
+    ach_mute();
 }

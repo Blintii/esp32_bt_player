@@ -7,9 +7,9 @@
 
 #include "app_config.h"
 #include "app_tools.h"
-#include "task_hub.h"
+#include "tasks.h"
 #include "bt_profiles.h"
-#include "stereo_codec.h"
+#include "ach.h"
 
 
 static void a2dp_callback(esp_a2d_cb_event_t event, esp_a2d_cb_param_t *param);
@@ -49,13 +49,13 @@ static void a2dp_callback(esp_a2d_cb_event_t event, esp_a2d_cb_param_t *param)
             if(param->conn_stat.state == ESP_A2D_CONNECTION_STATE_DISCONNECTED)
             {
                 bt_gap_show();
-                task_hub_I2S_del();
+                tasks_I2S_del();
                 list_tasks_stack_info();
             }
             else if(param->conn_stat.state == ESP_A2D_CONNECTION_STATE_CONNECTED)
             {
                 bt_gap_hide();
-                task_hub_I2S_create();
+                tasks_I2S_create();
             }
             else if(param->conn_stat.state == ESP_A2D_CONNECTION_STATE_CONNECTING)
             {
@@ -68,6 +68,8 @@ static void a2dp_callback(esp_a2d_cb_event_t event, esp_a2d_cb_param_t *param)
             /* audio stream datapath state in string */
             static const char *audio_state_str[] = {"suspend", "started"};
             ESP_LOGI(TAG, "transmission stream state: %s", audio_state_str[param->audio_stat.state]);
+
+            // TODO: when started, I2S channel should started
 
             if(ESP_A2D_AUDIO_STATE_STARTED == param->audio_stat.state)
             {
@@ -143,7 +145,7 @@ static void a2dp_callback(esp_a2d_cb_event_t event, esp_a2d_cb_param_t *param)
 
 static void a2dp_data_callback(const uint8_t *data, uint32_t len)
 {
-    task_hub_ringbuf_send(data, len);
+    tasks_ringbuf_send(data, len);
 
     if(!audio_packet_cnt)
     {

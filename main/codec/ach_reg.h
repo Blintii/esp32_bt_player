@@ -1,15 +1,16 @@
 /*
- * Stereo audio codec controller handler
- *  WM8960 codec implemented
+ * ACH (Audio Codec Handler)
  */
 
-#ifndef __STEREO_CODEC_REG_H__
-#define __STEREO_CODEC_REG_H__
+#ifndef __ACH_REG_H__
+#define __ACH_REG_H__
 
 
-#define R0_LeftInputVolume 0
-#define R1_RightInputVolume 1
-
+typedef union {
+/* WM8960 has 9bit width registers */
+    uint16_t raw: 9;
+    uint16_t R0_LeftInputVolume: 9;
+    uint16_t R1_RightInputVolume: 9;
 /*
  * R2 (02h) LOUT1 volume
  *
@@ -30,8 +31,11 @@
  *        |                 |            | 0110000 = -73dB
  *        |                 |            | 0101111 to 0000000 = Analogue MUTE
  */
-#define R2_LOUT1Volume 2
-
+    struct {
+        uint16_t LOUT1VOL: 7;
+        uint16_t LO1ZC: 1;
+        uint16_t OUT1VU: 1;
+    } R2_LOUT1Volume;
 /*
  * R3 (03h) ROUT1 volume
  *
@@ -52,8 +56,11 @@
  *        |                 |            | 0110000 = -73dB
  *        |                 |            | 0101111 to 0000000 = Analogue MUTE
  */
-#define R3_ROUT1Volume 3
-
+    struct {
+        uint16_t ROUT1VOL: 7;
+        uint16_t RO1ZC: 1;
+        uint16_t OUT1VU: 1;
+    } R3_ROUT1Volume;
 /*
  * R4 (04h) Clocking (1)
  *
@@ -93,8 +100,12 @@
  *        |                 |            | 0 = SYSCLK derived from MCLK
  *        |                 |            | 1 = SYSCLK derived from PLL output
  */
-#define R4_Clocking_1 4
-
+    struct {
+        uint16_t CLKSEL: 1;
+        uint16_t SYSCLKDIV: 2;
+        uint16_t DACDIV: 3;
+        uint16_t ADCDIV: 3;
+    } R4_Clocking_1;
 /*
  * R5 (05h) ADC and DAC Control (1)
  *
@@ -130,8 +141,15 @@
  *        |                 |            | 1 = Disable high pass filter on
  *        |                 |            |     left and right channels
  */
-#define R5_ADCAndDACControl_1 5
-
+    struct {
+        uint16_t ADCHPD: 1;
+        uint16_t DEEMPH: 2;
+        uint16_t DACMU: 1;
+        uint16_t reserved4: 1;
+        uint16_t ADCPOL: 2;
+        uint16_t DACDIV2: 1;
+        uint16_t reserved8: 1;
+    } R5_ADCAndDACControl_1;
 /*
  * R6 (06h) ADC and DAC Control (2)
  *
@@ -167,8 +185,15 @@
  * -------+-----------------+------------+--------------------------------------------------
  *  0 - reserved
  */
-#define R6_ADCAndDACControl_2 6
-
+    struct {
+        uint16_t reserved0: 1;
+        uint16_t DACSLOPE: 1;
+        uint16_t DACMR: 1;
+        uint16_t DACSMM: 1;
+        uint16_t reserved4: 1;
+        uint16_t DACPOL: 2;
+        uint16_t reserved7: 2;
+    } R6_ADCAndDACControl_2;
 /*
  * R7 (07h) Audio Interface
  *
@@ -214,11 +239,17 @@
  *        |                 |            | 10 = I2S Format
  *        |                 |            | 11 = DSP Mode
  */
-#define R7_AudioInterface_1 7
-
-#define R8_Clocking_2 8
-#define R9_AudioInterface_2 9
-
+    struct {
+        uint16_t FORMAT: 2;
+        uint16_t WL: 2;
+        uint16_t LRP: 1;
+        uint16_t DLRSWAP: 1;
+        uint16_t MS: 1;
+        uint16_t BCLKINV: 1;
+        uint16_t ALRSWAP: 1;
+    } R7_AudioInterface_1;
+    uint16_t R8_Clocking_2: 9;
+    uint16_t R9_AudioInterface_2: 9;
 /*
  * R10 (0Ah) Left DAC Volume
  *
@@ -236,8 +267,10 @@
  *        |                 |            | ... 0.5dB steps up to
  *        |                 |            | 1111 1111 = 0dB
  */
-#define R10_LeftDACVolume 10
-
+    struct {
+        uint16_t LDACVOL: 8;
+        uint16_t DACVU: 1;
+    } R10_LeftDACVolume;
 /*
  * R11 (0Bh) Left DAC Volume
  *
@@ -255,26 +288,25 @@
  *        |                 |            | ... 0.5dB steps up to
  *        |                 |            | 1111 1111 = 0dB
  */
-#define R11_RightDACVolume 11
-
-#define R12_Reserved 12
-#define R13_Reserved 13
-#define R14_Reserved 14
-
+    struct {
+        uint16_t RDACVOL: 8;
+        uint16_t DACVU: 1;
+    } R11_RightDACVolume;
+    uint16_t R12_Reserved: 9;
+    uint16_t R13_Reserved: 9;
+    uint16_t R14_Reserved: 9;
 /*
  * R15 (0Fh) Reset
  * Writing to this register resets all registers to their default state
  */
-#define R15_Reset 15
-
-#define R16_3DControl 16
-#define R17_ALC_1 17
-#define R18_ALC_2 18
-#define R19_ALC_3 19
-#define R20_NoiseGate 20
-#define R21_LeftADCVolume 21
-#define R22_RightADCVolume 22
-
+    uint16_t R15_Reset: 9;
+    uint16_t R16_3DControl: 9;
+    uint16_t R17_ALC_1: 9;
+    uint16_t R18_ALC_2: 9;
+    uint16_t R19_ALC_3: 9;
+    uint16_t R20_NoiseGate: 9;
+    uint16_t R21_LeftADCVolume: 9;
+    uint16_t R22_RightADCVolume: 9;
 /*
  * R23 (17h) Additional Control (1)
  *
@@ -319,10 +351,16 @@
  *        |                 |            | 0 = Slow clock disabled
  *        |                 |            | 1 = Slow clock enabled
  */
-#define R23_AdditionalControl_1 23
-
-#define R24_AdditionalControl_2 24
-
+    struct {
+        uint16_t TOEN: 1;
+        uint16_t TOCLKSEL: 1;
+        uint16_t DATSEL: 2;
+        uint16_t DMONOMIX: 1;
+        uint16_t reserved5: 1;
+        uint16_t VSEL: 2;
+        uint16_t TSDEN: 1;
+    } R23_AdditionalControl_1;
+    uint16_t R24_AdditionalControl_2: 9;
 /*
  * R25 (19h) Power management (1)
  *
@@ -364,8 +402,16 @@
  *        |                 |            | 0 = Master clock enabled
  *        |                 |            | 1 = Master clock disabled
  */
-#define R25_PowerManagment_1 25
-
+    struct {
+        uint16_t DIGENB: 1;
+        uint16_t MICB: 1;
+        uint16_t ADCR: 1;
+        uint16_t ADCL: 1;
+        uint16_t AINR: 1;
+        uint16_t AINL: 1;
+        uint16_t VREF: 1;
+        uint16_t VMIDSEL: 2;
+    } R25_PowerManagment_1;
 /*
  * R26 (1Ah) Power management (2)
  *
@@ -405,8 +451,17 @@
  *        |                 |            | 0 = Power down
  *        |                 |            | 1 = Power up
  */
-#define R26_PowerManagment_2 26
-
+    struct {
+        uint16_t PLLEN: 1;
+        uint16_t OUT3: 1;
+        uint16_t reserved2: 1;
+        uint16_t SPKR: 1;
+        uint16_t SPKL: 1;
+        uint16_t ROUT1: 1;
+        uint16_t LOUT1: 1;
+        uint16_t DACR: 1;
+        uint16_t DACL: 1;
+    } R26_PowerManagment_2;
 /*
  * R27 (1Bh) Additional Control (3)
  *
@@ -435,8 +490,13 @@
  *        |                 |            | 101 = 8k
  *        |                 |            | 110 and 111 = Reserved
  */
-#define R27_AdditionalControl_3 27
-
+    struct {
+        uint16_t ADC_ALC_SR: 3;
+        uint16_t OUT3CAP: 1;
+        uint16_t reserved4: 2;
+        uint16_t VROI: 1;
+        uint16_t reserved7: 2;
+    } R27_AdditionalControl_3;
 /*
  * R28 (1Ch) Anti-Pop (1)
  *
@@ -470,8 +530,16 @@
  *        |                 |            | 0 = Standby mode disabled (Normal operation)
  *        |                 |            | 1 = Standby mode enabled
  */
-#define R28_AntiPop_1 28
-
+    struct {
+        uint16_t HPSTBY: 1;
+        uint16_t reserved1: 1;
+        uint16_t SOFT_ST: 1;
+        uint16_t BUFIOEN: 1;
+        uint16_t BUFDCOPEN: 1;
+        uint16_t reserved5: 2;
+        uint16_t POBCTRL: 1;
+        uint16_t reserved8: 1;
+    } R28_AntiPop_1;
 /*
  * R29 (1Dh) Anti-Pop (2)
  *
@@ -494,13 +562,16 @@
  * -------+-----------------+------------+--------------------------------------------------
  *  3:0 - reserved
  */
-#define R29_AntiPop_2 29
-
-#define R30_Reserved 30
-#define R31_Reserved 31
-#define R32_ADCLSignalPath 32
-#define R33_ADCRSignalPath 33
-
+    struct {
+        uint16_t reserved0: 4;
+        uint16_t DRES: 2;
+        uint16_t DISOP: 1;
+        uint16_t reserved7: 2;
+    } R29_AntiPop_2;
+    uint16_t R30_Reserved: 9;
+    uint16_t R31_Reserved: 9;
+    uint16_t R32_ADCLSignalPath: 9;
+    uint16_t R33_ADCRSignalPath: 9;
 /*
  * R34 (22h) Left Out Mix
  *
@@ -521,11 +592,14 @@
  * -------+-----------------+------------+--------------------------------------------------
  *  3:0 - reserved
  */
-#define R34_LeftOutMix 34
-
-#define R35_Reserved 35
-#define R36_Reserved 36
-
+    struct {
+        uint16_t reserved0: 4;
+        uint16_t LI2LOVOL: 3;
+        uint16_t LI2LO: 1;
+        uint16_t LD2LO: 1;
+    } R34_LeftOutMix;
+    uint16_t R35_Reserved: 9;
+    uint16_t R36_Reserved: 9;
 /*
  * R37 (25h) Right Out Mix
  *
@@ -546,16 +620,19 @@
  * -------+-----------------+------------+--------------------------------------------------
  *  3:0 - reserved
  */
-#define R37_RightOutMix 37
-
-#define R38_MonoOutMix_1 38
-#define R39_MonoOutMix_2 39
-#define R40_LeftSpeakerVolume 40
-#define R41_RightSpeakerVolume 41
-#define R42_OUT3Volume 42
-#define R43_LeftInputBoostMixer 43
-#define R44_RightInputBoostMixer 44
-
+    struct {
+        uint16_t reserved0: 4;
+        uint16_t RI2ROVOL: 3;
+        uint16_t RI2RO: 1;
+        uint16_t RD2RO: 1;
+    } R37_RightOutMix;
+    uint16_t R38_MonoOutMix_1: 9;
+    uint16_t R39_MonoOutMix_2: 9;
+    uint16_t R40_LeftSpeakerVolume: 9;
+    uint16_t R41_RightSpeakerVolume: 9;
+    uint16_t R42_OUT3Volume: 9;
+    uint16_t R43_LeftInputBoostMixer: 9;
+    uint16_t R44_RightInputBoostMixer: 9;
 /*
  * R45 (2Dh) Left Bypass
  *
@@ -575,8 +652,12 @@
  * -------+-----------------+------------+--------------------------------------------------
  *  3:0 - reserved
  */
-#define R45_LeftBypass 45
-
+    struct {
+        uint16_t reserved0: 4;
+        uint16_t LB2LOVOL: 3;
+        uint16_t LB2LO: 1;
+        uint16_t reserved8: 1;
+    } R45_LeftBypass;
 /*
  * R46 (2Eh) Right Bypass
  *
@@ -596,8 +677,12 @@
  * -------+-----------------+------------+--------------------------------------------------
  *  3:0 - reserved
  */
-#define R46_RightBypass 46
-
+    struct {
+        uint16_t reserved0: 4;
+        uint16_t RB2ROVOL: 3;
+        uint16_t RB2RO: 1;
+        uint16_t reserved8: 1;
+    } R46_RightBypass;
 /*
  * R47 (2Fh) Power management (3)
  *
@@ -623,14 +708,20 @@
  * -------+-----------------+------------+--------------------------------------------------
  *  1:0 - reserved
  */
-#define R47_PowerManagement_3 47
-
-#define R48_AdditionalControl_4 48
-#define R49_ClassDControl_1 49
-#define R50_Reserved 50
-#define R51_ClassDControl_2 51
-
-/* R52 (34h) PLL (1)
+    struct {
+        uint16_t reserved0: 2;
+        uint16_t ROMIX: 1;
+        uint16_t LOMIX: 1;
+        uint16_t RMIC: 1;
+        uint16_t LMIC: 1;
+        uint16_t reserved6: 3;
+    } R47_PowerManagement_3;
+    uint16_t R48_AdditionalControl_4: 9;
+    uint16_t R49_ClassDControl_1: 9;
+    uint16_t R50_Reserved: 9;
+    uint16_t R51_ClassDControl_2: 9;
+/*
+ * R52 (34h) PLL (1)
  *
  *  bits  | label           | default    | description
  * -------+-----------------+------------+--------------------------------------------------
@@ -652,40 +743,58 @@
  *        |                 |            | frequency ratio.
  *        |                 |            | Use values greater than 5 and less than 13
  */
-#define R52_PLL_1 52
-
+    struct {
+        uint16_t PLLN: 4;
+        uint16_t PLLPRESCALE: 1;
+        uint16_t SDM: 1;
+        uint16_t OPCLKDIV: 3;
+    } R52_PLL_1;
 /*
  * R53 (35h) PLL (2)
  *
  *  bits  | label           | default    | description
  * -------+-----------------+------------+--------------------------------------------------
+ *  8 - reserved
+ * -------+-----------------+------------+--------------------------------------------------
  *  7:0   | PLLK[23:16]     | 0011 0001  | Fractional (K) part of PLL1 input/output
  *        |                 | 31h        | frequency ratio (treat as one 24-digit binary
  *        |                 |            | number)
  */
-#define R53_PLL_2 53
-
+    struct {
+        uint16_t PLLK: 8;
+        uint16_t reserved8: 1;
+    } R53_PLL_2;
 /*
  * R54 (36h) PLL (3)
  *
  *  bits  | label           | default    | description
  * -------+-----------------+------------+--------------------------------------------------
+ *  8 - reserved
+ * -------+-----------------+------------+--------------------------------------------------
  *  7:0   | PLLK[15:8]      | 0010 0110  | Fractional (K) part of PLL1 input/output
  *        |                 | 26h        | frequency ratio (treat as one 24-digit binary
  *        |                 |            | number)
  */
-#define R54_PLL_3 54
-
+    struct {
+        uint16_t PLLK: 8;
+        uint16_t reserved8: 1;
+    } R54_PLL_3;
 /*
  * R55 (37h) PLL (4)
  *
  *  bits  | label           | default    | description
  * -------+-----------------+------------+--------------------------------------------------
+ *  8 - reserved
+ * -------+-----------------+------------+--------------------------------------------------
  *  7:0   | PLLK[7:0]       | 1110 1001  | Fractional (K) part of PLL1 input/output
  *        |                 | E9h        | frequency ratio (treat as one 24-digit binary
  *        |                 |            | number)
  */
-#define R55_PLL_4 55
+    struct {
+        uint16_t PLLK: 8;
+        uint16_t reserved8: 1;
+    } R55_PLL_4;
+} ach_reg_WM8960;
 
 
-#endif /* __STEREO_CODEC_REG_H__ */
+#endif /* __ACH_REG_H__ */

@@ -10,8 +10,8 @@
 #include "app_config.h"
 #include "app_tools.h"
 #include "bt_profiles.h"
-#include "task_hub.h"
-#include "stereo_codec.h"
+#include "tasks.h"
+#include "ach.h"
 
 
 static void avrcp_control_callback(esp_avrc_ct_cb_event_t event, esp_avrc_ct_cb_param_t *param);
@@ -107,7 +107,7 @@ static void avrcp_target_callback(esp_avrc_tg_cb_event_t event, esp_avrc_tg_cb_p
         }
         /* when absolute volume command from remote device set, this event comes */
         case ESP_AVRC_TG_SET_ABSOLUTE_VOLUME_CMD_EVT: {
-            // ESP_LOGI(TAG, "set absolute volume: %d%%", (int)param->set_abs_vol.volume * 100 / 0x7f);
+            ESP_LOGI(TAG, "set absolute volume: %d (%d%%)", param->set_abs_vol.volume, (int)(param->set_abs_vol.volume * 100 / 0x7f));
             volume_set_by_controller(param->set_abs_vol.volume);
             break;
         }
@@ -146,5 +146,5 @@ static void avrcp_target_callback(esp_avrc_tg_cb_event_t event, esp_avrc_tg_cb_p
 static void volume_set_by_controller(uint8_t volume)
 {
     cur_volume = volume;
-    task_hub_set_volume(volume);
+    tasks_set_volume(volume);
 }

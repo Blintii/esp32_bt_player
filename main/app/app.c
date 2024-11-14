@@ -7,8 +7,8 @@
 
 #include "app_tools.h"
 #include "app_config.h"
-#include "task_hub.h"
-#include "stereo_codec.h"
+#include "tasks.h"
+#include "ach.h"
 #include "bt_profiles.h"
 #include "led_std.h"
 
@@ -50,7 +50,7 @@ void app_main(void)
     led_std_init();
 
     /* init application tasks */
-    task_hub_tasks_create();
+    tasks_create();
 
     /* classic bluetooth used only
      * so release the memory for Bluetooth Low Energy */

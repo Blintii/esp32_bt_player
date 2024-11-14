@@ -7,9 +7,9 @@
 #include "freertos/ringbuf.h"
 
 #include "app_config.h"
-#include "task_hub.h"
+#include "tasks.h"
 #include "app_tools.h"
-#include "stereo_codec.h"
+#include "ach.h"
 #include "bt_profiles.h"
 #include "led_std.h"
 
@@ -26,8 +26,8 @@ enum {
 };
 
 
-static void task_hub_I2S_process();
-static void task_hub_I2C_process();
+static void tasks_I2S_process();
+static void tasks_I2C_process();
 
 
 static const char *TAG = LOG_COLOR("91") "TASK" LOG_RESET_COLOR;
@@ -44,16 +44,16 @@ static size_t dropped_bytes = 0;
 static uint8_t last_vol = 0;
 
 
-void task_hub_tasks_create()
+void tasks_create()
 {
     i2c_bus_semaphore = xSemaphoreCreateBinary();
     ERR_IF_NULL_RETURN(i2c_bus_semaphore);
 
-    xTaskCreatePinnedToCore(task_hub_I2C_process, "I2C", 6000, NULL, 12, NULL, 1);
-    task_hub_I2S_buf_init();
+    xTaskCreatePinnedToCore(tasks_I2C_process, "I2C", 6000, NULL, 12, NULL, 1);
+    tasks_I2S_buf_init();
 }
 
-void task_hub_I2S_buf_init()
+void tasks_I2S_buf_init()
 {
     ESP_LOGI(TAG, "I2S ringbuffer init...");
     i2s_tx_semaphore = xSemaphoreCreateBinary();
@@ -66,21 +66,21 @@ void task_hub_I2S_buf_init()
     ESP_LOGI(TAG, "ringbuf state set: READY");
 }
 
-void task_hub_I2S_create()
+void tasks_I2S_create()
 {
     ERR_CHECK_RETURN(i2s_ringbuf_state != RINGBUF_STATE_READY);
 
     ESP_LOGI(TAG, "ringbuf state set: PRELOAD");
     i2s_ringbuf_state = RINGBUF_STATE_PRELOAD;
 
-    xTaskCreatePinnedToCore(task_hub_I2S_process, "I2STask", 8000, NULL, 11, &i2s_task, 1);
+    xTaskCreatePinnedToCore(tasks_I2S_process, "I2STask", 8000, NULL, 11, &i2s_task, 1);
 }
 
-void task_hub_I2S_del()
+void tasks_I2S_del()
 {
     i2s_ringbuf_state = RINGBUF_STATE_INIT;
     ESP_LOGI(TAG, "ringbuf state set: INIT");
-    stereo_codec_I2S_stop();
+    ach_I2S_stop();
 
     if(i2s_task)
     {
@@ -100,10 +100,10 @@ void task_hub_I2S_del()
         i2s_tx_semaphore = NULL;
     }
 
-    task_hub_I2S_buf_init();
+    tasks_I2S_buf_init();
 }
 
-void task_hub_ringbuf_send(const uint8_t *data, size_t size)
+void tasks_ringbuf_send(const uint8_t *data, size_t size)
 {
     size_t buf_items_size = 0;
     BaseType_t done = pdFALSE;
@@ -134,7 +134,7 @@ void task_hub_ringbuf_send(const uint8_t *data, size_t size)
             if(buf_items_size >= RINGBUF_TRIGGER_LEVEL)
             {
                 ESP_LOGI(TAG, "ringbuf triggered, state set: PLAY");
-                stereo_codec_I2S_enable_channel();
+                ach_I2S_enable_channel();
                 i2s_ringbuf_state = RINGBUF_STATE_PLAY;
 
                 if(pdFALSE == xSemaphoreGive(i2s_tx_semaphore))
@@ -152,9 +152,9 @@ void task_hub_ringbuf_send(const uint8_t *data, size_t size)
     }
 }
 
-static void task_hub_I2S_process()
+static void tasks_I2S_process()
 {
-    stereo_codec_I2S_start();
+    ach_I2S_start();
     led_std_set(LED_STD_MODE_DIM);
 
     uint8_t *data;
@@ -180,21 +180,21 @@ static void task_hub_I2S_process()
                 {
                     ESP_LOGI(TAG, "ringbuf underflowed, state set: PRELOAD");
                     i2s_ringbuf_state = RINGBUF_STATE_PRELOAD;
-                    stereo_codec_I2S_disable_channel();
+                    ach_I2S_disable_channel();
                     break;
                 }
 
-                stereo_codec_I2S_write(data, item_size);
+                ach_I2S_write(data, item_size);
                 vRingbufferReturnItem(i2s_ringbuf, data);
             }
         }
     }
 }
 
-static void task_hub_I2C_process()
+static void tasks_I2C_process()
 {
     /* init audio peripheral */
-    stereo_codec_control_init();
+    ach_control_init();
 
     while(1)
     {
@@ -203,7 +203,7 @@ static void task_hub_I2C_process()
             uint8_t tmp = last_vol;
             // uint8_t tmp_in_percent = tmp * 100 / 0x7f;
             // ESP_LOGI(TAG, "start volume set: %d%%", tmp_in_percent);
-            stereo_codec_set_volume(tmp);
+            ach_set_volume(tmp);
             vTaskDelay(pdMS_TO_TICKS(500));
             // ESP_LOGI(TAG, "end volume set: %d%%", tmp_in_percent);
         }
@@ -211,7 +211,7 @@ static void task_hub_I2C_process()
 
 }
 
-void task_hub_set_volume(uint8_t vol)
+void tasks_set_volume(uint8_t vol)
 {
     last_vol = vol;
     xSemaphoreGive(i2c_bus_semaphore);
