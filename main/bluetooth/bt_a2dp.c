@@ -20,6 +20,9 @@ static const char *TAG = LOG_COLOR("94") "BT_A2DP";
 static const char *TAGE = LOG_COLOR("94") "BT_A2DP" LOG_COLOR_E;
 /* count for audio packet */
 static uint32_t audio_packet_cnt = 0;
+static uint32_t audio_packet_min = UINT32_MAX;
+static uint32_t audio_packet_max = 0;
+static uint32_t audio_packet_sum = 0;
 
 
 void bt_a2dp_init()
@@ -49,16 +52,11 @@ static void a2dp_callback(esp_a2d_cb_event_t event, esp_a2d_cb_param_t *param)
             if(param->conn_stat.state == ESP_A2D_CONNECTION_STATE_DISCONNECTED)
             {
                 bt_gap_show();
-                tasks_I2S_del();
                 list_tasks_stack_info();
             }
             else if(param->conn_stat.state == ESP_A2D_CONNECTION_STATE_CONNECTED)
             {
                 bt_gap_hide();
-                tasks_I2S_create();
-            }
-            else if(param->conn_stat.state == ESP_A2D_CONNECTION_STATE_CONNECTING)
-            {
             }
 
             break;
@@ -68,14 +66,24 @@ static void a2dp_callback(esp_a2d_cb_event_t event, esp_a2d_cb_param_t *param)
             /* audio stream datapath state in string */
             static const char *audio_state_str[] = {"suspend", "started"};
             ESP_LOGI(TAG, "transmission stream state: %s", audio_state_str[param->audio_stat.state]);
-
-            // TODO: when started, I2S channel should started
+            tasks_signal signal = {
+                .aim_task = TASKS_INST_AUDIO_PLAYER
+            };
 
             if(ESP_A2D_AUDIO_STATE_STARTED == param->audio_stat.state)
             {
                 audio_packet_cnt = 0;
+                audio_packet_min = UINT32_MAX;
+                audio_packet_max = 0;
+                audio_packet_sum = 0;
+                signal.type = TASKS_SIG_AUDIO_STREAM_STARTED;
+            }
+            else
+            {
+                signal.type = TASKS_SIG_AUDIO_STREAM_SUSPEND;
             }
 
+            tasks_message(signal);
             break;
         }
         /* when audio codec is configured, this event comes */
@@ -145,17 +153,17 @@ static void a2dp_callback(esp_a2d_cb_event_t event, esp_a2d_cb_param_t *param)
 
 static void a2dp_data_callback(const uint8_t *data, uint32_t len)
 {
-    tasks_ringbuf_send(data, len);
-
-    if(!audio_packet_cnt)
-    {
-        audio_packet_cnt = 1;
-        ESP_LOGW(TAG, "first audio packet received");
-    }
+    tasks_audio_data(data, len);
+    if(len < audio_packet_min) audio_packet_min = len;
+    if(len > audio_packet_max) audio_packet_max = len;
+    audio_packet_sum += len;
 
     /* log the number every 100 packets */
-    // if(++audio_packet_cnt % 100 == 0)
-    // {
-    //     ESP_LOGI(TAG, "audio packet count: %"PRIu32, audio_packet_cnt);
-    // }
+    if(++audio_packet_cnt % 100 == 0)
+    {
+        ESP_LOGI(TAG, "audio packet count: %ld, min: %ld, max: %ld, sum: %ld", audio_packet_cnt, audio_packet_min, audio_packet_max, audio_packet_sum);
+        audio_packet_min = UINT32_MAX;
+        audio_packet_max = 0;
+        audio_packet_sum = 0;
+    }
 }

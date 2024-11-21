@@ -14,7 +14,7 @@ static const char *TAGE = LOG_COLOR("95") "CODEC" LOG_COLOR_E;
 static i2s_chan_handle_t tx_chan = NULL;
 
 
-void ach_I2S_start()
+void ach_player_init(uint32_t *total_dma_buf_size)
 {
     i2s_chan_config_t chan_cfg = {
         .id = I2S_PERIPH_NUM,
@@ -56,16 +56,10 @@ void ach_I2S_start()
     i2s_chan_info_t info;
     i2s_channel_get_info(tx_chan, &info);
     ESP_LOGI(TAG, "I2S channel init OK with buf size: %ld", info.total_dma_buf_size);
+    *total_dma_buf_size = info.total_dma_buf_size;
 }
 
-void ach_I2S_stop()
-{
-    i2s_channel_disable(tx_chan);
-    i2s_del_channel(tx_chan);
-    ach_mute();
-}
-
-void ach_I2S_write(const void *src, size_t size)
+void ach_player_data(const void *src, size_t size)
 {
     size_t done = 0;
     esp_err_t err = i2s_channel_write(tx_chan, src, size, &done, 500);
@@ -76,14 +70,14 @@ void ach_I2S_write(const void *src, size_t size)
     }
 }
 
-void ach_I2S_enable_channel()
+void ach_player_start()
 {
     ESP_LOGW(TAG, "I2S channel STARTED");
     ach_unmute();
     i2s_channel_enable(tx_chan);
 }
 
-void ach_I2S_disable_channel()
+void ach_player_stop()
 {
     ESP_LOGW(TAG, "I2S channel STOPPED");
     i2s_channel_disable(tx_chan);

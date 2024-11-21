@@ -146,5 +146,15 @@ static void avrcp_target_callback(esp_avrc_tg_cb_event_t event, esp_avrc_tg_cb_p
 static void volume_set_by_controller(uint8_t volume)
 {
     cur_volume = volume;
-    tasks_set_volume(volume);
+
+    tasks_signal signal = {
+        .aim_task = TASKS_INST_AUDIO_PLAYER,
+        .type = TASKS_SIG_AUDIO_VOLUME,
+        .arg = {
+            .audio_volume = {
+                .volume = volume
+            }
+        }
+    };
+    tasks_message(signal);
 }

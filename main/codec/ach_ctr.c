@@ -40,7 +40,7 @@ void ach_control_init()
     WM8960_config();
 }
 
-void ach_set_volume(uint8_t vol)
+void ach_volume(uint8_t vol)
 {
     uint8_t vol_i = 0;
 
