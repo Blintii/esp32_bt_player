@@ -1,15 +1,9 @@
 
-#include "esp_system.h"
 #include "esp_a2dp_api.h"
 
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-
-#include "app_config.h"
 #include "app_tools.h"
-#include "tasks.h"
 #include "bt_profiles.h"
-#include "ach.h"
+#include "tasks.h"
 
 
 static void a2dp_callback(esp_a2d_cb_event_t event, esp_a2d_cb_param_t *param);

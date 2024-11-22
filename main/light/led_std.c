@@ -6,8 +6,8 @@
 #include "led_std.h"
 
 
-static const char *TAG = LOG_COLOR("95") "LED" LOG_RESET_COLOR;
-static const char *TAGE = LOG_COLOR("95") "LED" LOG_COLOR_E;
+static const char *TAG = LOG_COLOR("95") "SLED" LOG_RESET_COLOR;
+static const char *TAGE = LOG_COLOR("95") "SLED" LOG_COLOR_E;
 
 
 static void led_std_cfg(uint32_t clk_div, uint32_t duty);

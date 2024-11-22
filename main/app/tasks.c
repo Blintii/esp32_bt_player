@@ -1,14 +1,12 @@
 
-#include <string.h>
-#include "esp_system.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/semphr.h"
 #include "freertos/ringbuf.h"
 
 #include "app_config.h"
-#include "tasks.h"
 #include "app_tools.h"
+#include "tasks.h"
 #include "ach.h"
 #include "bt_profiles.h"
 #include "led_std.h"

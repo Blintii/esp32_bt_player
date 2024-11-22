@@ -1,14 +1,11 @@
 
-#include "driver/i2c.h"
-#include "esp_check.h"
 #include "freertos/FreeRTOS.h"
-#include "driver/gpio.h"
+#include "driver/i2c.h"
 
 #include "app_config.h"
 #include "app_tools.h"
 #include "ach.h"
 #include "ach_reg.h"
-#include "bt_profiles.h"
 #include "led_std.h"
 
 
@@ -32,8 +29,6 @@ static bool muted = true;
 
 void ach_control_init()
 {
-    gpio_set_direction(GPIO_NUM_5, GPIO_MODE_OUTPUT);
-    gpio_set_level(GPIO_NUM_5, 0);
     /* Initialize I2C peripheral */
     ach_ctr_I2C_init();
     /* Initialize audio codec */
@@ -117,7 +112,6 @@ static esp_err_t WM8960_set(uint8_t reg, ach_reg_WM8960 data)
 
     while(1)
     {
-        gpio_set_level(GPIO_NUM_5, 0);
         res = i2c_master_write_to_device(I2C_PERIPH_NUM, I2C_ADDRESS_CODEC, write_buf, 2, pdMS_TO_TICKS(10));
 
         if(res == ESP_OK)
@@ -128,7 +122,6 @@ static esp_err_t WM8960_set(uint8_t reg, ach_reg_WM8960 data)
         }
         else
         {
-            gpio_set_level(GPIO_NUM_5, 1);
             ESP_LOGE(TAGE, "%s", esp_err_to_name(res));
             led_std_set(LED_STD_MODE_FAST);
 

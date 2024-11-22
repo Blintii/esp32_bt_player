@@ -1,14 +1,9 @@
 
-#include "esp_system.h"
 #include "esp_gap_bt_api.h"
-#include "driver/ledc.h"
-
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
 
 #include "app_config.h"
-#include "bt_profiles.h"
 #include "app_tools.h"
+#include "bt_profiles.h"
 #include "led_std.h"
 
 

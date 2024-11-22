@@ -8,6 +8,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "freertos/FreeRTOS.h"
 
 
 #define TASKS_THROTTLE_MIN_TIME pdMS_TO_TICKS(100)

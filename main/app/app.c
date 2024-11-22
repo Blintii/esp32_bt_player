@@ -1,12 +1,13 @@
 
+#include "freertos/FreeRTOS.h"
 #include "nvs.h"
 #include "nvs_flash.h"
 #include "esp_bt.h"
 #include "esp_bt_device.h"
 #include "esp_bt_main.h"
 
-#include "app_tools.h"
 #include "app_config.h"
+#include "app_tools.h"
 #include "tasks.h"
 #include "ach.h"
 #include "bt_profiles.h"

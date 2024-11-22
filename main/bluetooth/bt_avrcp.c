@@ -1,17 +1,9 @@
 
-#include <string.h>
-#include <stdbool.h>
-#include "esp_system.h"
 #include "esp_avrc_api.h"
 
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-
-#include "app_config.h"
 #include "app_tools.h"
 #include "bt_profiles.h"
 #include "tasks.h"
-#include "ach.h"
 
 
 static void avrcp_control_callback(esp_avrc_ct_cb_event_t event, esp_avrc_ct_cb_param_t *param);
