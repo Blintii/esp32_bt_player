@@ -31,7 +31,7 @@ typedef enum {
 
 static void tasks_throttler();
 static void tasks_handle_throttled_signal(tasks_signal_throttled *signal);
-static void tasks_send_throttled_signal(tasks_signal signal, TickType_t throttle_time);
+static void tasks_send_throttled_signal(tasks_signal signal, TickType_t throttle_min_time);
 static void tasks_audio_player();
 static void tasks_audio_state(audio_state_t new_state);
 static void tasks_signal_send(tasks_signal signal);
@@ -104,7 +104,7 @@ void tasks_audio_data(const uint8_t *data, size_t size)
     {
         if(pdTRUE == xSemaphoreTake(audio_semaphore, portMAX_DELAY))
         {
-            dropped_bytes++;
+            dropped_bytes += size;
             xSemaphoreGive(audio_semaphore);
         }
 
@@ -143,8 +143,12 @@ void tasks_audio_data(const uint8_t *data, size_t size)
 
 static void tasks_throttler()
 {
+    TickType_t lastWakeTime;
+
     while(1)
     {
+        lastWakeTime = xTaskGetTickCount();
+
         for(uint8_t task_i = 0; task_i < TASKS_INST_MAX; task_i++)
         {
             for(uint8_t sig_i = 0; sig_i < TASKS_SIG_MAX; sig_i++)
@@ -153,7 +157,7 @@ static void tasks_throttler()
             }
         }
 
-        vTaskDelay(TASKS_THROTTLE_MIN_TIME);
+        xTaskDelayUntil(&lastWakeTime, TASKS_THROTTLE_MIN_TIME);
     }
 }
 
@@ -209,7 +213,7 @@ static void tasks_handle_throttled_signal(tasks_signal_throttled *signal)
     if(need_send) tasks_message(signal->waiting_signal);
 }
 
-static void tasks_send_throttled_signal(tasks_signal signal, TickType_t throttle_time)
+static void tasks_send_throttled_signal(tasks_signal signal, TickType_t throttle_min_time)
 {
     switch(signal.type)
     {
@@ -237,7 +241,7 @@ static void tasks_send_throttled_signal(tasks_signal signal, TickType_t throttle
         immediate = true;
         sig_throt->live = true;
         sig_throt->need_acknowledge = true;
-        sig_throt->tick_left = throttle_time;
+        sig_throt->tick_left = throttle_min_time;
     }
 
     // ESP_LOGW(TAG, "END %s", __func__);

@@ -46,7 +46,7 @@ void led_std_set(led_std_mode mode)
             ESP_LOGI(TAG, "blue LED mode set: SLOW");
             break;
         case LED_STD_MODE_FAST:
-            led_std_cfg(20000, 2000);
+            led_std_cfg(12000, 1600);
             ESP_LOGI(TAG, "blue LED mode set: FAST");
             break;
         case LED_STD_MODE_DIM:

@@ -11,6 +11,7 @@
 #include "ach.h"
 #include "bt_profiles.h"
 #include "led_std.h"
+#include "led_matrix.h"
 
 
 static const char *TAG = LOG_COLOR("37") "APP";
@@ -78,6 +79,8 @@ void app_main(void)
     vTaskDelay(pdMS_TO_TICKS(1000));
     list_tasks_stack_info();
     ESP_LOGI(TAG, "exit the main entry point");
+
+    led_strip_app();
 }
 
 // if needs callback function when stack overflow
