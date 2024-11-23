@@ -1,22 +1,25 @@
 
+#include "string.h"
 #include "freertos/FreeRTOS.h"
 #include "driver/rmt_tx.h"
 #include "driver/rmt_encoder.h"
+#include "esp_clk_tree.h"
+#include "hal/clk_tree_hal.h"
 
 #include "app_config.h"
 #include "app_tools.h"
 #include "led_matrix.h"
 
 
-#define RMT_LED_STRIP_GPIO_NUM      PIN_LED_STRIP_1
-
-#define STRIP_LED_N         265
+#define RESOLUTION_HZ 80000000
+#define STRIP_LED_N 266
+#define DURATION_US_TO_CYC(us) (RESOLUTION_HZ/1000000*us)
 
 
 typedef struct {
     rmt_encoder_t base;
-    rmt_encoder_t *bytes_encoder;
-    rmt_encoder_t *copy_encoder;
+    rmt_encoder_handle_t bytes_encoder;
+    rmt_encoder_handle_t copy_encoder;
     int state;
     rmt_symbol_word_t reset_code;
 } rmt_led_strip_encoder_t;
@@ -26,14 +29,16 @@ static void rmt_new_led_strip_encoder();
 static size_t rmt_encode_led_strip(rmt_encoder_t *encoder, rmt_channel_handle_t channel, const void *primary_data, size_t data_size, rmt_encode_state_t *ret_state);
 static esp_err_t rmt_led_strip_encoder_reset(rmt_encoder_t *encoder);
 static esp_err_t rmt_del_led_strip_encoder(rmt_encoder_t *encoder);
-static bool tx_done_callback(rmt_channel_handle_t tx_chan, const rmt_tx_done_event_data_t *edata, void *user_ctx);
-static void led_strip_hsv2rgb(uint32_t h, uint32_t s, uint32_t v, uint32_t *r, uint32_t *g, uint32_t *b);
+// static bool tx_done_callback(rmt_channel_handle_t tx_chan, const rmt_tx_done_event_data_t *edata, void *user_ctx);
+static void rainbow();
+static void hsv2rgb(uint32_t h, uint32_t s, uint32_t v, uint32_t *r, uint32_t *g, uint32_t *b);
 
 
 static const char *TAG = LOG_COLOR("95") "MLED" LOG_RESET_COLOR;
 static const char *TAGE = LOG_COLOR("95") "MLED" LOG_COLOR_E;
 static uint8_t led_strip_pixels[STRIP_LED_N * 3];
-rmt_led_strip_encoder_t led_strip_encoder = {
+static rmt_channel_handle_t led_chan = NULL;
+static rmt_led_strip_encoder_t led_strip_encoder = {
     .base = {
         .encode = rmt_encode_led_strip,
         .reset = rmt_led_strip_encoder_reset,
@@ -41,27 +46,39 @@ rmt_led_strip_encoder_t led_strip_encoder = {
     },
     .reset_code = {
         .level0 = 0,
-        .duration0 = 3000,
+        .duration0 = DURATION_US_TO_CYC(300),
         .level1 = 0,
         .duration1 = 0,
     }
+};
+// different led strip might have its own timing requirements, following parameter is for WS2812
+static const rmt_bytes_encoder_config_t encoder_default_config = {
+    .bit0 = {
+        .level0 = 1,
+        .duration0 = 24, // T0H=0.3us
+        .level1 = 0,
+        .duration1 = 72, // T0L=0.9us
+    },
+    .bit1 = {
+        .level0 = 1,
+        .duration0 = 72, // T1H=0.9us
+        .level1 = 0,
+        .duration1 = 24, // T1L=0.3us
+    },
+    .flags.msb_first = 1 // WS2812 transfer bit order: G7...G0R7...R0B7...B0
 };
 
 
 void led_strip_app(void)
 {
-    uint32_t red = 0;
-    uint32_t green = 0;
-    uint32_t blue = 0;
-    uint16_t hue = 0;
-    uint16_t start_rgb = 0;
+    /* APB can configured with other value, so need check this */
+    ERR_CHECK_RESET(RESOLUTION_HZ != clk_hal_apb_get_freq_hz());
 
-    rmt_channel_handle_t led_chan = NULL;
     rmt_tx_channel_config_t tx_chan_config = {
         .clk_src = RMT_CLK_SRC_DEFAULT, // select source clock
-        .gpio_num = RMT_LED_STRIP_GPIO_NUM,
+        .gpio_num = PIN_LED_STRIP_1,
         .mem_block_symbols = 512, // increase the block size can make the LED less flickering
-        .resolution_hz = 10000000,
+        .resolution_hz = RESOLUTION_HZ,
         .trans_queue_depth = 4, // set the number of transactions that can be pending in the background
     };
     ERR_CHECK_RESET(rmt_new_tx_channel(&tx_chan_config, &led_chan));
@@ -69,62 +86,19 @@ void led_strip_app(void)
 
     rmt_new_led_strip_encoder();
     ESP_LOGI(TAG, "new led strip encoder OK");
-    rmt_encoder_handle_t encoder_handle = &led_strip_encoder.base;
-    rmt_tx_event_callbacks_t cbs = {
-        .on_trans_done = tx_done_callback
-    };
-    ERR_CHECK(rmt_tx_register_event_callbacks(led_chan, &cbs, NULL));
+    // rmt_tx_event_callbacks_t cbs = {
+    //     .on_trans_done = tx_done_callback
+    // };
+    // ERR_CHECK(rmt_tx_register_event_callbacks(led_chan, &cbs, NULL));
     ERR_CHECK_RESET(rmt_enable(led_chan));
     ESP_LOGI(TAG, "RMT enable OK");
 
-    rmt_transmit_config_t tx_config = {
-        .loop_count = 0,
-        .flags = {
-            .eot_level = 0,
-            .queue_nonblocking = 1
-        }
-    };
-    ERR_CHECK_RETURN(rmt_transmit(led_chan, encoder_handle, led_strip_pixels, sizeof(led_strip_pixels), &tx_config));
-    ESP_LOGI(TAG, "clear LED strip OK");
-    ERR_CHECK_RETURN(rmt_tx_wait_all_done(led_chan, portMAX_DELAY));
-    vTaskDelay(10);
-    ESP_LOGI(TAG, "start LED rainbow...");
-    while (1) {
-        for (int j = 0; j < STRIP_LED_N; j++) {
-            // Build RGB pixels
-            hue = j * 360 / STRIP_LED_N + start_rgb;
-            led_strip_hsv2rgb(hue, 100, 8, &red, &green, &blue);
-            led_strip_pixels[j * 3 + 0] = green;
-            led_strip_pixels[j * 3 + 1] = blue;
-            led_strip_pixels[j * 3 + 2] = red;
-        }
-        // Flush RGB values to LEDs
-        ERR_CHECK_RETURN(rmt_transmit(led_chan, encoder_handle, led_strip_pixels, sizeof(led_strip_pixels), &tx_config));
-        ERR_CHECK_RETURN(rmt_tx_wait_all_done(led_chan, portMAX_DELAY));
-        vTaskDelay(pdMS_TO_TICKS(1000));
-        start_rgb += 10;
-    }
+    rainbow();
 }
 
 static void rmt_new_led_strip_encoder()
 {
-    // different led strip might have its own timing requirements, following parameter is for WS2812
-    rmt_bytes_encoder_config_t bytes_encoder_config = {
-        .bit0 = {
-            .level0 = 1,
-            .duration0 = 3, // T0H=0.3us
-            .level1 = 0,
-            .duration1 = 9, // T0L=0.9us
-        },
-        .bit1 = {
-            .level0 = 1,
-            .duration0 = 9, // T1H=0.9us
-            .level1 = 0,
-            .duration1 = 3, // T1L=0.3us
-        },
-        .flags.msb_first = 1 // WS2812 transfer bit order: G7...G0R7...R0B7...B0
-    };
-    ERR_CHECK_RESET(rmt_new_bytes_encoder(&bytes_encoder_config, &led_strip_encoder.bytes_encoder));
+    ERR_CHECK_RESET(rmt_new_bytes_encoder(&encoder_default_config, &led_strip_encoder.bytes_encoder));
     rmt_copy_encoder_config_t copy_encoder_config;
     ERR_CHECK_RESET(rmt_new_copy_encoder(&copy_encoder_config, &led_strip_encoder.copy_encoder));
 }
@@ -180,10 +154,183 @@ static esp_err_t rmt_del_led_strip_encoder(rmt_encoder_t *encoder)
     return ESP_OK;
 }
 
-static bool IRAM_ATTR tx_done_callback(rmt_channel_handle_t tx_chan, const rmt_tx_done_event_data_t *edata, void *user_ctx)
+// static bool IRAM_ATTR tx_done_callback(rmt_channel_handle_t tx_chan, const rmt_tx_done_event_data_t *edata, void *user_ctx)
+// {
+//     return false;
+// }
+
+static void rainbow()
 {
-    ESP_EARLY_LOGW(TAG, "TX done");
-    return false;
+    uint32_t red = 0;
+    uint32_t green = 0;
+    uint32_t blue = 0;
+    uint16_t hue = 0;
+    uint32_t value;
+    rmt_encoder_handle_t encoder_handle = &led_strip_encoder.base;
+    rmt_transmit_config_t tx_config = {
+        .loop_count = 0,
+        .flags = {
+            .eot_level = 0,
+            .queue_nonblocking = 1
+        }
+    };
+    rmt_bytes_encoder_config_t try_config = {
+        .bit0 = {
+            .level0 = 1,
+            .level1 = 0,
+        },
+        .bit1 = {
+            .level0 = 1,
+            .level1 = 0,
+        },
+        .flags.msb_first = 1
+    };
+    int master = 1;
+    int slave = 0;
+    bool run = true;
+    uint16_t tmp = 0;
+    bool dec = false;
+    bool save_tmp = false;
+
+    while(1)
+    {
+        try_config.bit0.duration0 = 24; //T0H
+        try_config.bit0.duration1 = 50; //T0L
+        try_config.bit1.duration0 = 50; //T1H
+        try_config.bit1.duration1 = 24; //T1L
+        ESP_LOGW(TAGE, "\n\nNEW CYCLE\n");
+
+        switch(master)
+        {
+            case 0: ESP_LOGW(TAG, LOG_COLOR_W"T0H\n"); slave = 1; break;
+            case 1: ESP_LOGW(TAG, LOG_COLOR_W"T 0 L\n"); slave = 0; break;
+            case 2: ESP_LOGW(TAG, LOG_COLOR_W"T 1 H\n"); slave = 0; break;
+            case 3: ESP_LOGW(TAG, LOG_COLOR_W"T1L\n"); slave = 0; break;
+            default: ERR_CHECK_RETURN(true);
+        }
+
+        save_tmp = true;
+
+        while(run)
+        {
+            if(save_tmp)
+            {
+                ERR_CHECK_RETURN(rmt_bytes_encoder_update_config(led_strip_encoder.bytes_encoder, &encoder_default_config));
+                memset(led_strip_pixels, 0, sizeof(led_strip_pixels));
+                ERR_CHECK_RETURN(rmt_transmit(led_chan, encoder_handle, led_strip_pixels, sizeof(led_strip_pixels), &tx_config));
+                ERR_CHECK_RETURN(rmt_tx_wait_all_done(led_chan, portMAX_DELAY));
+                vTaskDelay(pdMS_TO_TICKS(1000));
+
+                switch(slave)
+                {
+                    case 0: tmp = try_config.bit0.duration0; ESP_LOGI(TAG, LOG_COLOR_I"T0H\n"); break;
+                    case 1: tmp = try_config.bit0.duration1; ESP_LOGI(TAG, LOG_COLOR_I"T 0 L\n"); break;
+                    case 2: tmp = try_config.bit1.duration0; ESP_LOGI(TAG, LOG_COLOR_I"T 1 H\n"); break;
+                    case 3: tmp = try_config.bit1.duration1; ESP_LOGI(TAG, LOG_COLOR_I"T1L\n"); break;
+                    default: ERR_CHECK_RETURN(true);
+                }
+
+                save_tmp = false;
+            }
+
+            switch(slave)
+            {
+                case 0: try_config.bit0.duration0--; ESP_LOGI(TAG, LOG_COLOR_W"%d"LOG_RESET_COLOR" - %d - %d - %d", try_config.bit0.duration0, try_config.bit0.duration1, try_config.bit1.duration0, try_config.bit1.duration1); break;
+                case 1: try_config.bit0.duration1--; ESP_LOGI(TAG, "%d - "LOG_COLOR_W"%d"LOG_RESET_COLOR" - %d - %d", try_config.bit0.duration0, try_config.bit0.duration1, try_config.bit1.duration0, try_config.bit1.duration1); break;
+                case 2: try_config.bit1.duration0--; ESP_LOGI(TAG, "%d - %d - "LOG_COLOR_W"%d"LOG_RESET_COLOR" - %d", try_config.bit0.duration0, try_config.bit0.duration1, try_config.bit1.duration0, try_config.bit1.duration1); break;
+                case 3: try_config.bit1.duration1--; ESP_LOGI(TAG, "%d - %d - %d - "LOG_COLOR_W"%d", try_config.bit0.duration0, try_config.bit0.duration1, try_config.bit1.duration0, try_config.bit1.duration1); break;
+                default: ERR_CHECK_RETURN(true);
+            }
+
+            ERR_CHECK_RETURN(rmt_bytes_encoder_update_config(led_strip_encoder.bytes_encoder, &try_config));
+
+            for(uint16_t start_rgb = 0; start_rgb < 100; start_rgb++)
+            {
+                for(int j = 0; j < STRIP_LED_N; j++)
+                {
+                    hue = j * 360 / STRIP_LED_N * 2 + start_rgb;
+                    value = start_rgb % 50;
+                    if(value >= 25) value = 50 - value;
+                    value += 2;
+                    hsv2rgb(hue, 100, value, &red, &green, &blue);
+                    led_strip_pixels[j * 3] = green;
+                    led_strip_pixels[j * 3 + 1] = red;
+                    led_strip_pixels[j * 3 + 2] = blue;
+                }
+
+                ERR_CHECK_RETURN(rmt_transmit(led_chan, encoder_handle, led_strip_pixels, sizeof(led_strip_pixels), &tx_config));
+                ERR_CHECK_RETURN(rmt_tx_wait_all_done(led_chan, portMAX_DELAY));
+                vTaskDelay(10);
+            }
+
+            switch(slave)
+            {
+                case 0:
+                    if(14 > try_config.bit0.duration0) {
+                        try_config.bit0.duration0 = tmp;
+                        save_tmp = true;
+                        if(master == 1) slave = 2;
+                        else slave = 1;
+                    }
+                    break;
+                case 1:
+                    if(38 > try_config.bit0.duration1) {
+                        try_config.bit0.duration1 = tmp;
+                        save_tmp = true;
+                        if(master == 2) slave = 3;
+                        else slave = 2;
+                    }
+                    break;
+                case 2:
+                    if(38 > try_config.bit1.duration0) {
+                        try_config.bit1.duration0 = tmp;
+                        save_tmp = true;
+                        if(master == 3) {
+                            if(12 < try_config.bit1.duration1) dec = true;
+                            else run = false;
+                            slave = 0;
+                        }
+                        else slave = 3;
+                    }
+                    break;
+                case 3:
+                    if(14 > try_config.bit1.duration1) {
+                        try_config.bit1.duration1 = tmp;
+                        save_tmp = true;
+                        if(master == 0) {
+                            if(12 < try_config.bit0.duration0) dec = true;
+                            else run = false;
+                            slave = 1;
+                        }
+                        else if(master == 1) {
+                            if(36 < try_config.bit0.duration1) dec = true;
+                            else run = false;
+                            slave = 0;
+                        }
+                        else if(master == 2) {
+                            if(36 < try_config.bit1.duration0) dec = true;
+                            else run = false;
+                            slave = 0;
+                        }
+                        else ERR_CHECK_RETURN(true);
+                    }
+                    break;
+                default: ERR_CHECK_RETURN(true);
+            }
+
+            if(dec)
+            {
+                try_config.bit0.duration0--;
+                try_config.bit0.duration1--;
+                try_config.bit1.duration0--;
+                try_config.bit1.duration1--;
+                dec = false;
+            }
+        }
+
+        if(master < 3) master++;
+        else master = 0;
+    }
 }
 
 /**
@@ -192,7 +339,7 @@ static bool IRAM_ATTR tx_done_callback(rmt_channel_handle_t tx_chan, const rmt_t
  * Wiki: https://en.wikipedia.org/wiki/HSL_and_HSV
  *
  */
-void led_strip_hsv2rgb(uint32_t h, uint32_t s, uint32_t v, uint32_t *r, uint32_t *g, uint32_t *b)
+void hsv2rgb(uint32_t h, uint32_t s, uint32_t v, uint32_t *r, uint32_t *g, uint32_t *b)
 {
     h %= 360; // h -> [0,360]
     uint32_t rgb_max = v * 2.55f;
