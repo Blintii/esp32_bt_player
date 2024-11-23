@@ -5,6 +5,7 @@
 #include "esp_bt.h"
 #include "esp_bt_device.h"
 #include "esp_bt_main.h"
+#include "esp_clk_tree.h"
 
 #include "app_config.h"
 #include "app_tools.h"
@@ -80,6 +81,12 @@ void app_main(void)
     vTaskDelay(pdMS_TO_TICKS(1000));
     list_tasks_stack_info();
     ESP_LOGI(TAG, "exit the main entry point");
+
+    uint32_t freq;
+    err = esp_clk_tree_src_get_freq_hz(SOC_MOD_CLK_APB, ESP_CLK_TREE_SRC_FREQ_PRECISION_EXACT, &freq);
+
+    if(err) ESP_LOGE(TAGE, "not get freq: %s", esp_err_to_name(err));
+    else ESP_LOGW(TAG, "freqi: %ld", freq);
 
     led_strip_app();
 }
