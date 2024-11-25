@@ -75,8 +75,7 @@ static void avrcp_control_callback(esp_avrc_ct_cb_event_t event, esp_avrc_ct_cb_
             break;
         }
         default:
-            ESP_LOGE(TAGE, "unhandled event: %d", event);
-            ERR_CHECK(true);
+            ERR_BAD_CASE(event, "%d");
             break;
     }
 }
@@ -129,8 +128,7 @@ static void avrcp_target_callback(esp_avrc_tg_cb_event_t event, esp_avrc_tg_cb_p
             break;
         }
         default:
-            ESP_LOGE(TAGE, "unhandled event: %d", event);
-            ERR_CHECK(true);
+            ERR_BAD_CASE(event, "%d");
             break;
     }
 }

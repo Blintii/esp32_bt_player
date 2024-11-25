@@ -23,14 +23,14 @@ void bt_gap_init()
 
 void bt_gap_show()
 {
-    led_std_set(LED_STD_MODE_SLOW);
+    sled_set(SLED_MODE_SLOW);
     esp_bt_gap_set_scan_mode(ESP_BT_CONNECTABLE, ESP_BT_GENERAL_DISCOVERABLE);
     ESP_LOGI(TAG, "device discoverable and connectable");
 }
 
 void bt_gap_hide()
 {
-    led_std_set(LED_STD_MODE_DIM);
+    sled_set(SLED_MODE_DIM);
     esp_bt_gap_set_scan_mode(ESP_BT_NON_CONNECTABLE, ESP_BT_NON_DISCOVERABLE);
     ESP_LOGI(TAG, "device not discoverable and not connectable anymore");
 }
@@ -73,7 +73,7 @@ static void gap_callback(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *par
         /* when ACL connection completed, this event comes
          * (ACL: Asynchronous Connection-oriented Logical transport) */
         case ESP_BT_GAP_ACL_CONN_CMPL_STAT_EVT: {
-            led_std_set(LED_STD_MODE_FAST);
+            sled_set(SLED_MODE_FAST);
             bda = (uint8_t *)param->acl_conn_cmpl_stat.bda;
             ESP_LOGI(TAG, "ACL connected complete to [%02X:%02X:%02X:%02X:%02X:%02X], status: 0x%X", bda[0], bda[1], bda[2], bda[3], bda[4], bda[5], param->acl_conn_cmpl_stat.stat);
             break;
@@ -102,8 +102,7 @@ static void gap_callback(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *par
             break;
         }
         default:
-            ESP_LOGE(TAGE, "unhandled event: %d", event);
-            ERR_CHECK(true);
+            ERR_BAD_CASE(event, "%d");
             break;
     }
 }

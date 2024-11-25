@@ -139,8 +139,7 @@ static void a2dp_callback(esp_a2d_cb_event_t event, esp_a2d_cb_param_t *param)
             break;
         }
         default:
-            ESP_LOGE(TAGE, "unhandled event: %d", event);
-            ERR_CHECK(true);
+            ERR_BAD_CASE(event, "%d");
             break;
     }
 }

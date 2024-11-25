@@ -91,7 +91,7 @@ void tasks_message(tasks_signal signal)
             break;
         default:
             ESP_LOGE(TAGE, "signal task: %d, signal type: %d", signal.aim_task, signal.type);
-            ERR_CHECK(true);
+            PRINT_TRACE();
             break;
     }
 }
@@ -311,7 +311,7 @@ static void tasks_audio_player()
                     break;
                 }
                 default:
-                    ERR_CHECK(true);
+                    ERR_BAD_CASE(signal.type, "%d");
                     break;
             }
 
@@ -370,7 +370,7 @@ static void tasks_audio_state(audio_state_t new_state)
         case AUDIO_STATE_FLUSH: ESP_LOGI(TAG, "audio state: FLUSH"); break;
         case AUDIO_STATE_DROP: ESP_LOGI(TAG, "audio state: DROP"); break;
         default:
-            ERR_CHECK(true);
+            ERR_BAD_CASE(new_state, "%d");
             return;
     }
 
@@ -386,7 +386,7 @@ static void tasks_audio_state(audio_state_t new_state)
         audio_state = new_state;
         xSemaphoreGive(audio_semaphore);
     }
-    else ERR_CHECK(true);
+    else PRINT_TRACE();
 }
 
 static void tasks_signal_send(tasks_signal signal)
@@ -410,7 +410,7 @@ static void tasks_signal_send(tasks_signal signal)
         case TASKS_INST_HOTSPOT:
         default:
             ESP_LOGE(TAGE, "signal task: %d, signal type: %d", signal.aim_task, signal.type);
-            ERR_CHECK(true);
+            PRINT_TRACE();
             break;
     }
 }

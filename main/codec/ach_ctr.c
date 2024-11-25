@@ -123,7 +123,7 @@ static esp_err_t WM8960_set(uint8_t reg, ach_reg_WM8960 data)
         else
         {
             ESP_LOGE(TAGE, "%s", esp_err_to_name(res));
-            led_std_set(LED_STD_MODE_FAST);
+            sled_set(SLED_MODE_FAST);
 
             if(++tryN > 15)
             {

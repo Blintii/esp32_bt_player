@@ -6,14 +6,14 @@
 #include "led_std.h"
 
 
-static const char *TAG = LOG_COLOR("95") "SLED" LOG_RESET_COLOR;
-static const char *TAGE = LOG_COLOR("95") "SLED" LOG_COLOR_E;
+static const char *TAG = LOG_COLOR("96") "SLED" LOG_RESET_COLOR;
+static const char *TAGE = LOG_COLOR("96") "SLED" LOG_COLOR_E;
 
 
 static void led_std_cfg(uint32_t clk_div, uint32_t duty);
 
 
-void led_std_init()
+void sled_init()
 {
     ledc_timer_config_t ledc_cfg = {
         .speed_mode = LEDC_HIGH_SPEED_MODE,
@@ -37,24 +37,24 @@ void led_std_init()
     ESP_LOGI(TAG, "blue LED init OK");
 }
 
-void led_std_set(led_std_mode mode)
+void sled_set(led_std_mode mode)
 {
     switch(mode)
     {
-        case LED_STD_MODE_SLOW:
+        case SLED_MODE_SLOW:
             led_std_cfg(66000, 900);
             ESP_LOGI(TAG, "blue LED mode set: SLOW");
             break;
-        case LED_STD_MODE_FAST:
+        case SLED_MODE_FAST:
             led_std_cfg(12000, 1600);
             ESP_LOGI(TAG, "blue LED mode set: FAST");
             break;
-        case LED_STD_MODE_DIM:
+        case SLED_MODE_DIM:
             led_std_cfg(256, 200);
             ESP_LOGI(TAG, "blue LED mode set: DIM");
             break;
         default:
-            ERR_CHECK(true);
+            ERR_BAD_CASE(mode, "%d");
             break;
     }
 }

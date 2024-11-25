@@ -49,7 +49,8 @@ void app_main(void)
     }
 
     ERR_CHECK_RESET(err);
-    led_std_init();
+    sled_init();
+    mled_init();
 
     /* init application tasks */
     tasks_create();
@@ -80,7 +81,6 @@ void app_main(void)
     vTaskDelay(pdMS_TO_TICKS(1000));
     list_tasks_stack_info();
     ESP_LOGI(TAG, "exit the main entry point");
-    led_strip_app();
 }
 
 // if needs callback function when stack overflow
