@@ -419,10 +419,12 @@ static void tasks_signal_send(tasks_signal signal)
 
 static void tasks_lights()
 {
-    lights_test();
+    lights_set_strip_size(0, 50);
+    lights_set_strip_size(1, 266);
 
     while(1)
     {
+        lights_main();
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }

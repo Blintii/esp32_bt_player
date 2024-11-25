@@ -19,7 +19,7 @@
 #define GET_STRIP_FROM_BASE(encoder_base) (mled_strip*) encoder_base
 
 
-static void mled_strip_init(uint8_t index, gpio_num_t pin);
+static void mled_strip_init(size_t index, gpio_num_t pin);
 static size_t mled_encode(rmt_encoder_t *encoder, rmt_channel_handle_t channel, const void *primary_data, size_t data_size, rmt_encode_state_t *ret_state);
 static esp_err_t mled_encode_reset(rmt_encoder_t *encoder);
 static esp_err_t mled_encode_del(rmt_encoder_t *encoder);
@@ -70,10 +70,11 @@ void mled_update(mled_strip *strip)
             .queue_nonblocking = 1
         }
     };
+    ESP_LOGI(TAG, "update strip %d...", pixels->pixel_n);
     ERR_CHECK(rmt_transmit(strip->tx_channel, &strip->base, pixels->data, pixels->data_size, &tx_config));
 }
 
-static void mled_strip_init(uint8_t index, gpio_num_t pin)
+static void mled_strip_init(size_t index, gpio_num_t pin)
 {
     ERR_CHECK_RESET(MLED_CHANNEL_N <= index);
     ESP_LOGI(TAG, "init strip %d...", index);
