@@ -30,8 +30,9 @@ typedef struct {
     rmt_channel_handle_t tx_channel;
     const rmt_symbol_word_t *reset_code;
     size_t reset_code_size;
-    bool data_sent;
     mled_pixels pixels;
+    bool data_sent;
+    bool need_update;
 } mled_strip;
 
 

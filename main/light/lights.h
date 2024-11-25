@@ -21,14 +21,13 @@ typedef struct {
     mled_strip *mled;
     mled_pixels frame_buf;
     lights_rgb_order colors;
-    bool live;
-    bool need_update;
 } lights_zone;
 
 
 void lights_main();
 void lights_set_strip_size(size_t strip_index, size_t pixel_n);
-void lights_set_zone(size_t zone_index, size_t strip_index, size_t pixel_offset, size_t pixel_n, lights_rgb_order colors);
+lights_zone *lights_set_zone(size_t zone_index, size_t strip_index, size_t pixel_offset, size_t pixel_n, lights_rgb_order colors);
+void lights_fill_zone(lights_zone *zone, uint8_t r, uint8_t g, uint8_t b);
 
 
 #endif /* __LIGHTS__ */

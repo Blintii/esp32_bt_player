@@ -253,14 +253,13 @@ static void tasks_send_throttled_signal(tasks_signal signal, TickType_t throttle
 
 static void tasks_audio_player()
 {
-    /* init audio peripheral */
+    tasks_signal signal;
+    TickType_t tick;
     uint32_t total_dma_buf_size = I2S_DMA_FRAME_N * I2S_DMA_BUF_N;
+    /* init audio peripheral */
     ach_control_init();
     ach_player_init(&total_dma_buf_size);
     tasks_audio_state(AUDIO_STATE_STOP);
-
-    tasks_signal signal;
-    TickType_t tick;
 
     while(1)
     {
@@ -421,6 +420,18 @@ static void tasks_lights()
 {
     lights_set_strip_size(0, 50);
     lights_set_strip_size(1, 266);
+    uint8_t i = 0;
+    lights_rgb_order colors = {.i_r = 0, .i_g = 1, .i_b = 2};
+    lights_zone *zone = lights_set_zone(i++, 0, 0, 20, colors);
+    lights_fill_zone(zone, 50, 0, 0);
+    zone = lights_set_zone(i++, 0, 20, 10, colors);
+    lights_fill_zone(zone, 20, 12, 8);
+    zone = lights_set_zone(i++, 0, 30, 20, colors);
+    lights_fill_zone(zone, 0, 30, 0);
+    zone = lights_set_zone(i++, 1, 0, 133, colors);
+    lights_fill_zone(zone, 9, 3, 0);
+    zone = lights_set_zone(i++, 1, 133, 133, colors);
+    lights_fill_zone(zone, 6, 0, 2);
 
     while(1)
     {
