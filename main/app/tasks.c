@@ -9,7 +9,7 @@
 #include "tasks.h"
 #include "ach.h"
 #include "bt_profiles.h"
-#include "led_std.h"
+#include "lights.h"
 
 
 #define RINGBUF_SIZE (40 * 1024)
@@ -33,6 +33,7 @@ static void tasks_send_throttled_signal(tasks_signal signal, TickType_t throttle
 static void tasks_audio_player();
 static void tasks_audio_state(audio_state_t new_state);
 static void tasks_signal_send(tasks_signal signal);
+static void tasks_lights();
 // static void throttled_signal_dumb(tasks_signal_throttled *signal);
 
 
@@ -64,6 +65,7 @@ void tasks_create()
     ESP_LOGI(TAG, "init variables OK");
     xTaskCreatePinnedToCore(tasks_throttler, "Throttler", 4096, NULL, 12, NULL, 1);
     xTaskCreatePinnedToCore(tasks_audio_player, "Audio Player", 4096, NULL, 12, NULL, 1);
+    xTaskCreatePinnedToCore(tasks_lights, "Lights", 4096, NULL, 12, NULL, 1);
     ESP_LOGI(TAG, "created tasks OK");
 }
 
@@ -412,6 +414,16 @@ static void tasks_signal_send(tasks_signal signal)
             ESP_LOGE(TAGE, "signal task: %d, signal type: %d", signal.aim_task, signal.type);
             PRINT_TRACE();
             break;
+    }
+}
+
+static void tasks_lights()
+{
+    lights_test();
+
+    while(1)
+    {
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
 

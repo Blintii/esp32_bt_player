@@ -6,6 +6,8 @@
 #define __LED_MATRIX_H__
 
 
+#include <stdint.h>
+#include <stddef.h>
 #include "driver/rmt_encoder.h"
 
 
@@ -33,9 +35,13 @@ typedef struct {
 } mled_strip;
 
 
+extern mled_strip mled_channels[MLED_CHANNEL_N];
+
+
 void mled_init();
 void mled_encode_chain_ws281x(mled_strip *strip);
-mled_pixels *mled_get_pixels(uint8_t strip_index);
+void mled_set_size(mled_strip *strip, size_t pixel_n);
+void mled_update(mled_strip *strip);
 
 
 #endif /* __LED_MATRIX_H__ */
