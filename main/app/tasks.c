@@ -416,22 +416,82 @@ static void tasks_signal_send(tasks_signal signal)
     }
 }
 
+#include "string.h"
+
 static void tasks_lights()
 {
     lights_set_strip_size(0, 50);
     lights_set_strip_size(1, 266);
     uint8_t i = 0;
     lights_rgb_order colors = {.i_r = 0, .i_g = 1, .i_b = 2};
+    lights_shader *shader;
     lights_zone *zone = lights_set_zone(i++, 0, 0, 20, colors);
-    lights_fill_zone(zone, 50, 0, 0);
+    {
+        shader = &zone->shader;
+        shader->type = SHADER_COLOR;
+        shader->cfg.shader_color = (lights_shader_cfg_color) {
+            .color = {
+                .r = 0,
+                .g = 30,
+                .b = 0
+            }
+        };
+        shader->need_render = true;
+    }
     zone = lights_set_zone(i++, 0, 20, 10, colors);
-    lights_fill_zone(zone, 20, 12, 8);
+    {
+        shader = &zone->shader;
+        shader->type = SHADER_FFT;
+        shader->need_render = true;
+    }
     zone = lights_set_zone(i++, 0, 30, 20, colors);
-    lights_fill_zone(zone, 0, 30, 0);
+    {
+        shader = &zone->shader;
+        shader->type = SHADER_COLOR;
+        shader->cfg.shader_color = (lights_shader_cfg_color) {
+            .color = {
+                .r = 50,
+                .g = 0,
+                .b = 0
+            }
+        };
+        shader->need_render = true;
+    }
     zone = lights_set_zone(i++, 1, 0, 133, colors);
-    lights_fill_zone(zone, 9, 3, 0);
+    {
+        shader = &zone->shader;
+        shader->type = SHADER_COLORS_REPEAT;
+        color_rgb pattern[] = {
+            {40, 0, 0},
+            {16, 8, 4},
+            {0, 24, 0},
+            {16, 8, 4}
+        };
+        color_rgb *buf = (color_rgb*) malloc(sizeof(pattern));
+        memcpy(buf, pattern, sizeof(pattern));
+        shader->cfg.shader_colors_repeat = (lights_shader_cfg_colors_repeat) {
+            .colors = buf,
+            .color_n = 3
+        };
+        shader->need_render = true;
+    }
     zone = lights_set_zone(i++, 1, 133, 133, colors);
-    lights_fill_zone(zone, 6, 0, 2);
+    {
+        shader = &zone->shader;
+        shader->type = SHADER_COLORS_REPEAT;
+        color_rgb pattern[] = {
+            {9, 0, 0},
+            {0, 9, 0},
+            {0, 0, 9}
+        };
+        color_rgb *buf = (color_rgb*) malloc(sizeof(pattern));
+        memcpy(buf, pattern, sizeof(pattern));
+        shader->cfg.shader_colors_repeat = (lights_shader_cfg_colors_repeat) {
+            .colors = buf,
+            .color_n = 4
+        };
+        shader->need_render = true;
+    }
 
     while(1)
     {

@@ -34,7 +34,6 @@ void mled_init()
 {
     /* APB can configured with other value, so need check this */
     ERR_CHECK_RESET(MLED_CLOCK_HZ != clk_hal_apb_get_freq_hz());
-    ESP_LOGI(TAG, "APB frequency matches");
     mled_strip_init(0, PIN_LED_STRIP_0);
     mled_strip_init(1, PIN_LED_STRIP_1);
 }
@@ -46,7 +45,7 @@ void mled_set_size(mled_strip *strip, size_t pixel_n)
 
     if(pixels->data)
     {
-        ESP_LOGW(TAG, "strip already has pixels buf, freeing...");
+        ESP_LOGW(TAG, "strip already has pixels buf, freeing %d...", pixels->pixel_n);
         free(pixels->data);
         pixels->pixel_n = 0;
         pixels->data_size = 0;
@@ -77,7 +76,6 @@ void mled_update(mled_strip *strip)
 static void mled_strip_init(size_t index, gpio_num_t pin)
 {
     ERR_CHECK_RESET(MLED_CHANNEL_N <= index);
-    ESP_LOGI(TAG, "init strip %d...", index);
     mled_strip *strip = &mled_channels[index];
     rmt_tx_channel_config_t tx_chan_config = {
         .clk_src = RMT_CLK_SRC_DEFAULT,
@@ -87,8 +85,6 @@ static void mled_strip_init(size_t index, gpio_num_t pin)
         .trans_queue_depth = 4,
     };
     ERR_CHECK_RESET(rmt_new_tx_channel(&tx_chan_config, &strip->tx_channel));
-    ESP_LOGI(TAG, "new tx channel %d OK", index);
-
     strip->base = (rmt_encoder_t) {
         .encode = mled_encode,
         .reset = mled_encode_reset,
@@ -96,9 +92,8 @@ static void mled_strip_init(size_t index, gpio_num_t pin)
     };
     strip->data_sent = false;
     mled_encode_chain_ws281x(strip);
-    ESP_LOGI(TAG, "encode chain: WS281x %d OK", index);
     ERR_CHECK_RESET(rmt_enable(strip->tx_channel));
-    ESP_LOGI(TAG, "init strip %d OK", index);
+    ESP_LOGI(TAG, "init strip %d as WS281x OK", index);
 }
 
 static size_t IRAM_ATTR mled_encode(rmt_encoder_t *encoder, rmt_channel_handle_t tx_channel, const void *primary_data, size_t data_size, rmt_encode_state_t *ret_state)
