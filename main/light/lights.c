@@ -1,4 +1,5 @@
 
+#include "math.h"
 #include "freertos/FreeRTOS.h"
 
 #include "app_tools.h"
@@ -15,6 +16,7 @@ static lights_zone zones[LIGHTS_ZONES_SIZE];
 
 static void lights_render_shader_color(lights_zone *zone);
 static void lights_render_shader_colors_repeat(lights_zone *zone);
+static void lights_render_shader_colors_fade(lights_zone *zone);
 static void lights_render_shader_fft(lights_zone *zone);
 
 
@@ -35,6 +37,7 @@ void lights_main()
             {
                 case SHADER_COLOR: lights_render_shader_color(zone); break;
                 case SHADER_COLORS_REPEAT: lights_render_shader_colors_repeat(zone); break;
+                case SHADER_COLORS_FADE: lights_render_shader_colors_fade(zone); break;
                 case SHADER_FFT: lights_render_shader_fft(zone); break;
                 default: PRINT_TRACE(); break;
             }
@@ -125,14 +128,14 @@ static void lights_render_shader_colors_repeat(lights_zone *zone)
     uint8_t *buf = frame_buf->data;
     lights_rgb_order offset = zone->colors;
     lights_shader_cfg_colors_repeat *cfg = &zone->shader.cfg.shader_colors_repeat;
-    uint8_t *color = cfg->colors;
+    color_rgb *color = cfg->colors;
     size_t cur_color = 0;
 
     for(size_t i = 0; i < frame_buf->pixel_n; i++)
     {
-        buf[offset.i_r] = *color++;
-        buf[offset.i_g] = *color++;
-        buf[offset.i_b] = *color++;
+        buf[offset.i_r] = color->r;
+        buf[offset.i_g] = color->g;
+        buf[offset.i_b] = color->b;
         buf += 3;
 
         if(cfg->color_n <= ++cur_color)
@@ -140,9 +143,84 @@ static void lights_render_shader_colors_repeat(lights_zone *zone)
             cur_color = 0;
             color = cfg->colors;
         }
+        else color++;
     }
 
     zone->mled->need_update = true;
+}
+
+static void lights_render_shader_colors_fade(lights_zone *zone)
+{
+    ESP_LOGW(TAG, LOG_COLOR_W"NEW COLOR");
+    mled_pixels *frame_buf = &zone->frame_buf;
+    uint8_t *buf = frame_buf->data;
+    lights_rgb_order offset = zone->colors;
+    lights_shader_cfg_colors_fade *cfg = &zone->shader.cfg.shader_colors_fade;
+    color_hsl *color = cfg->colors;
+    color_hsl work;
+    color_hsl step;
+    color_hsl next;
+    color_rgb rgb;
+    size_t color_left = cfg->color_n;
+    size_t pixel_left = frame_buf->pixel_n;
+    size_t section_left;
+    float hue_nearest, hue_test;
+    ESP_LOGI(TAG, "color_n: %d pixel_n: %d", color_left, pixel_left);
+
+    while(color_left)
+    {
+        work = *color;
+        step = (color_hsl) {0, 0, 0};
+
+        if(1 < color_left)
+        {
+            next = *(color + 1);
+            section_left = (pixel_left - 1) / (color_left - 1);
+
+            if(section_left)
+            {
+                /* find nearest hue instead of go through the wrong way in the color wheel */
+                hue_nearest = next.hue - work.hue;
+                hue_test = hue_nearest + 360;
+
+                if(fabsf(hue_test) < fabsf(hue_nearest)) hue_nearest = hue_test;
+                else
+                {
+                    hue_test = hue_nearest - 360;
+
+                    if(fabsf(hue_test) < fabsf(hue_nearest)) hue_nearest = hue_test;
+                }
+
+                step.hue = hue_nearest / (float)section_left;
+                step.sat = (next.sat - work.sat) / (float)section_left;
+                step.lum = (next.lum - work.lum) / (float)section_left;
+            }
+        }
+        else section_left = pixel_left;
+
+        pixel_left -= section_left;
+        ESP_LOGI(TAG, "left: %d, %d, from: %.2f", color_left, section_left, work.hue);
+
+        while(section_left)
+        {
+            rgb = color_hsl_to_rgb(work);
+            ESP_LOGI(TAG, " %.2f, rgb: %d %d %d", work.hue, rgb.r, rgb.g, rgb.b);
+            buf[offset.i_r] = rgb.r;
+            buf[offset.i_g] = rgb.g;
+            buf[offset.i_b] = rgb.b;
+            buf += 3;
+            work.hue += step.hue;
+            work.sat += step.sat;
+            work.lum += step.lum;
+            section_left--;
+        }
+
+        color_left--;
+        color++;
+    }
+
+    zone->mled->need_update = true;
+    ESP_LOGW(TAG, LOG_COLOR_E"END COLOR");
 }
 
 static void lights_render_shader_fft(lights_zone *zone)

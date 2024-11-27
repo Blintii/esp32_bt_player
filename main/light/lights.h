@@ -52,6 +52,7 @@ typedef struct {
     union {
         lights_shader_cfg_color shader_color;
         lights_shader_cfg_colors_repeat shader_colors_repeat;
+        lights_shader_cfg_colors_fade shader_colors_fade;
         lights_shader_cfg_fft shader_fft;
     } cfg;
 } lights_shader;
