@@ -69,7 +69,6 @@ void mled_update(mled_strip *strip)
             .queue_nonblocking = 1
         }
     };
-    ESP_LOGI(TAG, "update strip %d...", pixels->pixel_n);
     ERR_CHECK(rmt_transmit(strip->tx_channel, &strip->base, pixels->data, pixels->data_size, &tx_config));
 }
 

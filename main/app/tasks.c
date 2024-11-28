@@ -10,10 +10,11 @@
 #include "ach.h"
 #include "bt_profiles.h"
 #include "lights.h"
+#include "dsp.h"
 
 
-#define RINGBUF_SIZE (40 * 1024)
-#define RINGBUF_TRIGGER_LEVEL (16 * 1024)
+#define RINGBUF_SIZE (30 * 1024)
+#define RINGBUF_TRIGGER_LEVEL (12 * 1024)
 
 
 typedef enum {
@@ -33,6 +34,7 @@ static void tasks_send_throttled_signal(tasks_signal signal, TickType_t throttle
 static void tasks_audio_player();
 static void tasks_audio_state(audio_state_t new_state);
 static void tasks_signal_send(tasks_signal signal);
+static void tasks_dsp();
 static void tasks_lights();
 // static void throttled_signal_dumb(tasks_signal_throttled *signal);
 
@@ -41,6 +43,8 @@ static const char *TAG = LOG_COLOR("91") "TASK" LOG_RESET_COLOR;
 static const char *TAGE = LOG_COLOR("91") "TASK" LOG_COLOR_E;
 static SemaphoreHandle_t throttler_semaphore = NULL;
 static SemaphoreHandle_t audio_semaphore = NULL;
+static SemaphoreHandle_t dsp_in_semaphore = NULL;
+static SemaphoreHandle_t dsp_out_semaphore = NULL;
 static QueueHandle_t mails_audio_player = NULL;
 static RingbufHandle_t audio_stream_ringbuf = NULL;
 static audio_state_t audio_state = AUDIO_STATE_INIT;
@@ -57,6 +61,12 @@ void tasks_create()
     audio_semaphore = xSemaphoreCreateBinary();
     ERR_IF_NULL_RESET(audio_semaphore);
     xSemaphoreGive(audio_semaphore);
+    dsp_in_semaphore = xSemaphoreCreateBinary();
+    ERR_IF_NULL_RESET(dsp_in_semaphore);
+    xSemaphoreGive(dsp_in_semaphore);
+    dsp_out_semaphore = xSemaphoreCreateBinary();
+    ERR_IF_NULL_RESET(dsp_out_semaphore);
+    xSemaphoreGive(dsp_out_semaphore);
     mails_audio_player = xQueueCreate(15, sizeof(tasks_signal));
     ERR_IF_NULL_RESET(mails_audio_player);
     audio_stream_ringbuf = xRingbufferCreate(RINGBUF_SIZE, RINGBUF_TYPE_BYTEBUF);
@@ -65,7 +75,8 @@ void tasks_create()
     ESP_LOGI(TAG, "init variables OK");
     xTaskCreatePinnedToCore(tasks_throttler, "Throttler", 4096, NULL, 12, NULL, 1);
     xTaskCreatePinnedToCore(tasks_audio_player, "Audio Player", 4096, NULL, 12, NULL, 1);
-    xTaskCreatePinnedToCore(tasks_lights, "Lights", 10240, NULL, 12, NULL, 1);
+    xTaskCreatePinnedToCore(tasks_dsp, "DSP", 2560, NULL, 12, NULL, 1);
+    xTaskCreatePinnedToCore(tasks_lights, "Lights", 4096, NULL, 12, NULL, 1);
     ESP_LOGI(TAG, "created tasks OK");
 }
 
@@ -100,6 +111,13 @@ void tasks_message(tasks_signal signal)
 
 void tasks_audio_data(const uint8_t *data, size_t size)
 {
+    if(pdTRUE == xSemaphoreTake(dsp_in_semaphore, portMAX_DELAY))
+    {
+        dsp_new_data(data, size);
+        xSemaphoreGive(dsp_in_semaphore);
+    }
+    else PRINT_TRACE();
+
     if(audio_state == AUDIO_STATE_DROP)
     {
         if(pdTRUE == xSemaphoreTake(audio_semaphore, portMAX_DELAY))
@@ -416,6 +434,35 @@ static void tasks_signal_send(tasks_signal signal)
     }
 }
 
+static void tasks_dsp()
+{
+    dsp_init();
+    TickType_t lastWakeTime;
+
+    while(1)
+    {
+        lastWakeTime = xTaskGetTickCount();
+
+        if(pdTRUE == xSemaphoreTake(dsp_in_semaphore, portMAX_DELAY))
+        {
+            /* before fft need latest audio data be copied to work buf */
+            dsp_work_buf_init();
+            xSemaphoreGive(dsp_in_semaphore);
+            dsp_fft_do();
+
+            if(pdTRUE == xSemaphoreTake(dsp_out_semaphore, portMAX_DELAY))
+            {
+                dsp_fft_finalize();
+                xSemaphoreGive(dsp_out_semaphore);
+            }
+            else PRINT_TRACE();
+        }
+        else PRINT_TRACE();
+
+        xTaskDelayUntil(&lastWakeTime, TASKS_DSP_MIN_TIME);
+    }
+}
+
 #include "string.h"
 
 static void tasks_lights()
@@ -425,13 +472,13 @@ static void tasks_lights()
     uint8_t i = 0;
     lights_rgb_order colors = {.i_r = 0, .i_g = 1, .i_b = 2};
     lights_shader *shader;
-    lights_zone *zone = lights_set_zone(i++, 0, 0, 50, colors);
+    lights_zone *zone = lights_set_zone(i++, 0, 0, 22, colors);
     {
         shader = &zone->shader;
         shader->type = SHADER_FADE;
         color_hsl pattern[] = {
-            {350, 1, 0.4f},
-            {130, 1, 0.4f},
+            {350, 1, 0.1f},
+            {10, 1, 0.1f},
         };
         color_hsl *buf = (color_hsl*) malloc(sizeof(pattern));
         memcpy(buf, pattern, sizeof(pattern));
@@ -441,49 +488,60 @@ static void tasks_lights()
         };
         shader->need_render = true;
     }
-    zone = lights_set_zone(i++, 1, 0, 133, colors);
+    zone = lights_set_zone(i++, 1, 60, 35, colors);
     {
         shader = &zone->shader;
         shader->type = SHADER_FFT;
         color_hsl pattern[] = {
-            {350, 1, 0.4f},
-            {130, 1, 0.4f},
+            {0, 1, 0.5f},
+            {120, 1, 0.5f},
+            {240, 1, 0.5f}
         };
         color_hsl *buf = (color_hsl*) malloc(sizeof(pattern));
         memcpy(buf, pattern, sizeof(pattern));
         shader->cfg.shader_fft = (lights_shader_cfg_fft) {
             .colors = buf,
-            .color_n = 2,
-            .intensity = 1.0f,
-            .is_right = false
-        };
-        lights_shader_init_fft(zone);
-        shader->need_render = true;
-    }
-    zone = lights_set_zone(i++, 1, 133, 133, colors);
-    {
-        shader = &zone->shader;
-        shader->type = SHADER_FFT;
-        color_hsl pattern[] = {
-            {350, 1, 0.4f},
-            {130, 1, 0.4f},
-        };
-        color_hsl *buf = (color_hsl*) malloc(sizeof(pattern));
-        memcpy(buf, pattern, sizeof(pattern));
-        shader->cfg.shader_fft = (lights_shader_cfg_fft) {
-            .colors = buf,
-            .color_n = 2,
+            .color_n = sizeof(pattern)/sizeof(color_hsl),
             .intensity = 1.0f,
             .is_right = true
         };
         lights_shader_init_fft(zone);
         shader->need_render = true;
     }
+    zone = lights_set_zone(i++, 1, 96, 35, colors);
+    {
+        shader = &zone->shader;
+        shader->type = SHADER_FFT;
+        color_hsl pattern[] = {
+            {0, 1, 0.5f},
+            {120, 1, 0.5f},
+            {240, 1, 0.5f}
+        };
+        color_hsl *buf = (color_hsl*) malloc(sizeof(pattern));
+        memcpy(buf, pattern, sizeof(pattern));
+        shader->cfg.shader_fft = (lights_shader_cfg_fft) {
+            .colors = buf,
+            .color_n = sizeof(pattern)/sizeof(color_hsl),
+            .intensity = 1.0f,
+            .is_right = false
+        };
+        lights_shader_init_fft(zone);
+        shader->need_render = true;
+    }
+    TickType_t lastWakeTime;
 
     while(1)
     {
-        lights_main();
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        lastWakeTime = xTaskGetTickCount();
+
+        if(pdTRUE == xSemaphoreTake(dsp_out_semaphore, portMAX_DELAY))
+        {
+            lights_main();
+            xSemaphoreGive(dsp_out_semaphore);
+        }
+        else PRINT_TRACE();
+
+        xTaskDelayUntil(&lastWakeTime, TASKS_LIGHTS_MIN_TIME);
     }
 }
 

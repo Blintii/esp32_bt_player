@@ -41,6 +41,7 @@ static void lights_render_shader_repeat(lights_zone *zone);
 static void lights_render_shader_fade(lights_zone *zone);
 static void lights_render_shader_fft(lights_zone *zone);
 static void fadeing(fading_ctx arg);
+static void fft_fadeing(lights_shader_cfg_fft *cfg, size_t pixel_n);
 static void fft_band_map(lights_zone *zone);
 
 
@@ -138,18 +139,7 @@ void lights_shader_init_fft(lights_zone *zone)
     ERR_IF_NULL_RETURN(cfg->bands);
     cfg->pixel_lut = (color_hsl*)malloc(frame_buf->pixel_n * sizeof(color_hsl));
     ERR_IF_NULL_RETURN(cfg->pixel_lut);
-    fading_ctx arg = {
-        .type = FADING_TYPE_SHADER_FFT,
-        .color = cfg->colors,
-        .color_n = cfg->color_n,
-        .pixel_n = frame_buf->pixel_n,
-        .ctx = {
-            .shader_fft = {
-                .lut_pos = cfg->pixel_lut
-            }
-        }
-    };
-    fadeing(arg);
+    fft_fadeing(cfg, frame_buf->pixel_n);
     fft_band_map(zone);
 }
 
@@ -239,10 +229,9 @@ static void lights_render_shader_fft(lights_zone *zone)
     color_hsl *color = cfg->pixel_lut;
     color_hsl mod;
     color_rgb rgb;
-    float fft_res[DSP_FFT_RES_N];
+    float *fft_res = dsp_fft_get_res(cfg->is_right);
     lights_shader_cfg_fft_band *band = cfg->bands;
     float rms;
-    dsp_fft_get_res(fft_res, cfg->is_right);
 
     for(size_t px_i = 0; px_i < frame_buf->pixel_n; px_i++)
     {
@@ -269,6 +258,8 @@ static void lights_render_shader_fft(lights_zone *zone)
     }
 
     zone->mled->need_update = true;
+    /* to keep fft rendering live */
+    zone->shader.need_render = true;
 }
 
 static void fadeing(fading_ctx arg)
@@ -349,6 +340,22 @@ static void fadeing(fading_ctx arg)
     }
 }
 
+static void fft_fadeing(lights_shader_cfg_fft *cfg, size_t pixel_n)
+{
+    fading_ctx arg = {
+        .type = FADING_TYPE_SHADER_FFT,
+        .color = cfg->colors,
+        .color_n = cfg->color_n,
+        .pixel_n = pixel_n,
+        .ctx = {
+            .shader_fft = {
+                .lut_pos = cfg->pixel_lut
+            }
+        }
+    };
+    fadeing(arg);
+}
+
 static void fft_band_map(lights_zone *zone)
 {
     lights_shader_cfg_fft *cfg = &zone->shader.cfg.shader_fft;
@@ -371,7 +378,7 @@ static void fft_band_map(lights_zone *zone)
         if(pixel_n - i - 1)
         {
             /* apply logaritmic stepping */
-            cur_max = mult * powf((float)i / i_max, 2.7f);
+            cur_max = mult * powf((float)i / i_max, M_E);
             /* apply linear stepping */
             cur_max += i;
 

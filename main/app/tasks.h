@@ -12,6 +12,8 @@
 
 
 #define TASKS_THROTTLE_MIN_TIME pdMS_TO_TICKS(100)
+#define TASKS_DSP_MIN_TIME pdMS_TO_TICKS(10)
+#define TASKS_LIGHTS_MIN_TIME pdMS_TO_TICKS(10)
 
 
 typedef enum {
