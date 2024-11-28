@@ -4,9 +4,31 @@
 
 #include "app_tools.h"
 #include "lights.h"
+#include "dsp.h"
 
 
 #define LIGHTS_ZONES_SIZE 16
+
+typedef enum {
+    FADING_TYPE_SHADER_FADE,
+    FADING_TYPE_SHADER_FFT,
+} fading_type;
+
+typedef struct {
+    color_hsl *color;
+    size_t color_n;
+    size_t pixel_n;
+    fading_type type;
+    union {
+        struct {
+            uint8_t *buf;
+            lights_rgb_order offset;
+        } shader_fade;
+        struct {
+            color_hsl *lut_pos;
+        } shader_fft;
+    } ctx;
+} fading_ctx;
 
 
 static const char *TAG = LOG_COLOR("95") "LIGHT" LOG_RESET_COLOR;
@@ -15,9 +37,11 @@ static lights_zone zones[LIGHTS_ZONES_SIZE];
 
 
 static void lights_render_shader_color(lights_zone *zone);
-static void lights_render_shader_colors_repeat(lights_zone *zone);
-static void lights_render_shader_colors_fade(lights_zone *zone);
+static void lights_render_shader_repeat(lights_zone *zone);
+static void lights_render_shader_fade(lights_zone *zone);
 static void lights_render_shader_fft(lights_zone *zone);
+static void fadeing(fading_ctx arg);
+static void fft_band_map(lights_zone *zone);
 
 
 void lights_main()
@@ -35,9 +59,9 @@ void lights_main()
 
             switch(zone->shader.type)
             {
-                case SHADER_COLOR: lights_render_shader_color(zone); break;
-                case SHADER_COLORS_REPEAT: lights_render_shader_colors_repeat(zone); break;
-                case SHADER_COLORS_FADE: lights_render_shader_colors_fade(zone); break;
+                case SHADER_SINGLE: lights_render_shader_color(zone); break;
+                case SHADER_REPEAT: lights_render_shader_repeat(zone); break;
+                case SHADER_FADE: lights_render_shader_fade(zone); break;
                 case SHADER_FFT: lights_render_shader_fft(zone); break;
                 default: PRINT_TRACE(); break;
             }
@@ -80,7 +104,8 @@ lights_zone *lights_set_zone(size_t zone_index, size_t strip_index, size_t pixel
     lights_zone *zone = &zones[zone_index];
     mled_strip *strip = &mled_channels[strip_index];
     mled_pixels *pixels = &strip->pixels;
-    ERR_CHECK_RESET(!pixels->data || !pixels->pixel_n);
+    ERR_CHECK_RESET(!pixels->data);
+    ERR_CHECK_RESET(!pixels->pixel_n);
     ERR_CHECK_RESET(pixels->pixel_n < (pixel_offset + pixel_n));
     zone->frame_buf.data = &pixels->data[pixel_offset * 3];
     zone->frame_buf.pixel_n = pixel_n;
@@ -90,25 +115,51 @@ lights_zone *lights_set_zone(size_t zone_index, size_t strip_index, size_t pixel
 
     /* set default shader */
     lights_shader *shader = &zone->shader;
-    shader->type = SHADER_COLOR;
-    lights_shader_cfg_color cfg = {
+    shader->type = SHADER_SINGLE;
+    lights_shader_cfg_single cfg = {
         .color = {
             .r = 0,
             .g = 0,
             .b = 0
         }
     };
-    shader->cfg.shader_color = cfg;
+    shader->cfg.shader_single = cfg;
     shader->need_render = true;
     return zone;
+}
+
+void lights_shader_init_fft(lights_zone *zone)
+{
+    mled_pixels *frame_buf = &zone->frame_buf;
+    lights_shader_cfg_fft *cfg = &zone->shader.cfg.shader_fft;
+    ERR_CHECK(2 > frame_buf->pixel_n);
+    ERR_IF_NULL_RETURN(cfg->colors);
+    cfg->bands = (lights_shader_cfg_fft_band*)malloc(frame_buf->pixel_n * sizeof(lights_shader_cfg_fft_band));
+    ERR_IF_NULL_RETURN(cfg->bands);
+    cfg->pixel_lut = (color_hsl*)malloc(frame_buf->pixel_n * sizeof(color_hsl));
+    ERR_IF_NULL_RETURN(cfg->pixel_lut);
+    fading_ctx arg = {
+        .type = FADING_TYPE_SHADER_FFT,
+        .color = cfg->colors,
+        .color_n = cfg->color_n,
+        .pixel_n = frame_buf->pixel_n,
+        .ctx = {
+            .shader_fft = {
+                .lut_pos = cfg->pixel_lut
+            }
+        }
+    };
+    fadeing(arg);
+    fft_band_map(zone);
 }
 
 static void lights_render_shader_color(lights_zone *zone)
 {
     mled_pixels *frame_buf = &zone->frame_buf;
     uint8_t *buf = frame_buf->data;
+    ERR_IF_NULL_RETURN(buf);
     lights_rgb_order offset = zone->colors;
-    lights_shader_cfg_color *cfg = &zone->shader.cfg.shader_color;
+    lights_shader_cfg_single *cfg = &zone->shader.cfg.shader_single;
     color_rgb color = cfg->color;
 
     for(size_t i = 0; i < frame_buf->pixel_n; i++)
@@ -122,13 +173,15 @@ static void lights_render_shader_color(lights_zone *zone)
     zone->mled->need_update = true;
 }
 
-static void lights_render_shader_colors_repeat(lights_zone *zone)
+static void lights_render_shader_repeat(lights_zone *zone)
 {
     mled_pixels *frame_buf = &zone->frame_buf;
     uint8_t *buf = frame_buf->data;
+    ERR_IF_NULL_RETURN(buf);
     lights_rgb_order offset = zone->colors;
-    lights_shader_cfg_colors_repeat *cfg = &zone->shader.cfg.shader_colors_repeat;
+    lights_shader_cfg_repeat *cfg = &zone->shader.cfg.shader_repeat;
     color_rgb *color = cfg->colors;
+    ERR_IF_NULL_RETURN(color);
     size_t cur_color = 0;
 
     for(size_t i = 0; i < frame_buf->pixel_n; i++)
@@ -149,23 +202,65 @@ static void lights_render_shader_colors_repeat(lights_zone *zone)
     zone->mled->need_update = true;
 }
 
-static void lights_render_shader_colors_fade(lights_zone *zone)
+static void lights_render_shader_fade(lights_zone *zone)
 {
-    ESP_LOGW(TAG, LOG_COLOR_W"NEW COLOR");
     mled_pixels *frame_buf = &zone->frame_buf;
     uint8_t *buf = frame_buf->data;
+    ERR_IF_NULL_RETURN(buf);
     lights_rgb_order offset = zone->colors;
-    lights_shader_cfg_colors_fade *cfg = &zone->shader.cfg.shader_colors_fade;
+    lights_shader_cfg_fade *cfg = &zone->shader.cfg.shader_fade;
     color_hsl *color = cfg->colors;
+    ERR_IF_NULL_RETURN(color);
+    fading_ctx arg = {
+        .type = FADING_TYPE_SHADER_FADE,
+        .color = color,
+        .color_n = cfg->color_n,
+        .pixel_n = frame_buf->pixel_n,
+        .ctx = {
+            .shader_fade = {
+                .buf = buf,
+                .offset = offset
+            }
+        }
+    };
+    fadeing(arg);
+    zone->mled->need_update = true;
+}
+
+static void lights_render_shader_fft(lights_zone *zone)
+{
+    mled_pixels *frame_buf = &zone->frame_buf;
+    uint8_t *buf = frame_buf->data;
+    ERR_IF_NULL_RETURN(buf);
+    lights_rgb_order offset = zone->colors;
+    lights_shader_cfg_fft *cfg = &zone->shader.cfg.shader_fft;
+    ERR_IF_NULL_RETURN(cfg->bands);
+    ERR_IF_NULL_RETURN(cfg->pixel_lut);
+    color_hsl *color = cfg->pixel_lut;
+    color_rgb rgb;
+
+    for(size_t i = 0; i < frame_buf->pixel_n; i++)
+    {
+        rgb = color_hsl_to_rgb(*color++);
+        buf[offset.i_r] = rgb.r;
+        buf[offset.i_g] = rgb.g;
+        buf[offset.i_b] = rgb.b;
+        buf += 3;
+    }
+
+    zone->mled->need_update = true;
+}
+
+static void fadeing(fading_ctx arg)
+{
+    size_t color_left = arg.color_n;
+    size_t pixel_left = arg.pixel_n;
+    color_hsl *color = arg.color;
     color_hsl work;
     color_hsl step;
     color_hsl next;
-    color_rgb rgb;
-    size_t color_left = cfg->color_n;
-    size_t pixel_left = frame_buf->pixel_n;
     size_t section_left;
     float hue_nearest, hue_test;
-    ESP_LOGI(TAG, "color_n: %d pixel_n: %d", color_left, pixel_left);
 
     while(color_left)
     {
@@ -199,16 +294,30 @@ static void lights_render_shader_colors_fade(lights_zone *zone)
         else section_left = pixel_left;
 
         pixel_left -= section_left;
-        ESP_LOGI(TAG, "left: %d, %d, from: %.2f", color_left, section_left, work.hue);
 
         while(section_left)
         {
-            rgb = color_hsl_to_rgb(work);
-            ESP_LOGI(TAG, " %.2f, rgb: %d %d %d", work.hue, rgb.r, rgb.g, rgb.b);
-            buf[offset.i_r] = rgb.r;
-            buf[offset.i_g] = rgb.g;
-            buf[offset.i_b] = rgb.b;
-            buf += 3;
+            switch(arg.type)
+            {
+                case FADING_TYPE_SHADER_FADE: {
+                    color_rgb rgb = color_hsl_to_rgb(work);
+                    lights_rgb_order offset = arg.ctx.shader_fade.offset;
+                    uint8_t *buf = arg.ctx.shader_fade.buf;
+                    buf[offset.i_r] = rgb.r;
+                    buf[offset.i_g] = rgb.g;
+                    buf[offset.i_b] = rgb.b;
+                    arg.ctx.shader_fade.buf += 3;
+                    break;
+                }
+                case FADING_TYPE_SHADER_FFT: {
+                    *arg.ctx.shader_fft.lut_pos++ = work;
+                    break;
+                }
+                default:
+                    ERR_BAD_CASE(arg.type, "%d");
+                    break;
+            }
+
             work.hue += step.hue;
             work.sat += step.sat;
             work.lum += step.lum;
@@ -218,26 +327,71 @@ static void lights_render_shader_colors_fade(lights_zone *zone)
         color_left--;
         color++;
     }
-
-    zone->mled->need_update = true;
-    ESP_LOGW(TAG, LOG_COLOR_E"END COLOR");
 }
 
-static void lights_render_shader_fft(lights_zone *zone)
+static void fft_band_map(lights_zone *zone)
 {
-    mled_pixels *frame_buf = &zone->frame_buf;
-    uint8_t *buf = frame_buf->data;
-    lights_rgb_order offset = zone->colors;
-    // lights_shader_cfg_fft *cfg = &zone->shader.cfg.shader_fft;
-    uint8_t r = 0, g = 0, b = 0;
+    lights_shader_cfg_fft *cfg = &zone->shader.cfg.shader_fft;
+    lights_shader_cfg_fft_band *bands = cfg->bands;
+    size_t pixel_n = 30;//zone->frame_buf.pixel_n;
+    float fft_n = DSP_FFT_RES_N;
+    float mult = fft_n - pixel_n;
+    float i_max = pixel_n - 1.0f;
+    /* TODO: for skip DC component should start from 1
+     *       and decrease fft_n - 1 !!! */
+    size_t cur_max = 0;
+    size_t last_max = 0;
+    size_t sum = 0;
+    size_t width;
 
-    for(size_t i = 0; i < frame_buf->pixel_n; i++)
+    for(size_t i = 0; i < pixel_n; i++)
     {
-        buf[offset.i_r] = r;
-        buf[offset.i_g] = g;
-        buf[offset.i_b] = b;
-        buf += 3;
+        bands->fft_min = last_max;
+
+        if(pixel_n - i - 1)
+        {
+            /* apply logaritmic stepping */
+            cur_max = mult * powf((float)i / i_max, 2.7f);
+            /* apply linear stepping */
+            cur_max += i;
+
+            /* correct boundaries to guarantee at least 1 band mapping 1 pixel */
+            if(cur_max > last_max) width = cur_max - last_max;
+            else
+            {
+                cur_max = last_max + 1;
+                width = 1;
+            }
+
+            last_max = cur_max;
+            bands->fft_max = cur_max;
+        }
+        else
+        {
+            /* last item corrected with actual step summary */
+            width = fft_n - sum;
+            bands->fft_max = fft_n;
+        }
+
+        bands->fft_width = width;
+
+        // switch(i%3)
+        // {
+        //     case 2:
+        //         ESP_LOGI(TAG, "[%d...%d]: %d", bands->fft_min, bands->fft_max, bands->fft_width);
+        //         break;
+        //     case 1:
+        //         ESP_LOGI(TAG, LOG_COLOR_W"[%d...%d]: %d", bands->fft_min, bands->fft_max, bands->fft_width);
+        //         break;
+        //     default:
+        //         ESP_LOGI(TAG, LOG_COLOR_I"[%d...%d]: %d", bands->fft_min, bands->fft_max, bands->fft_width);
+        //         break;
+
+        // }
+
+        sum += width;
+        bands++;
     }
 
-    zone->mled->need_update = true;
+    // ESP_LOGW(TAG, LOG_COLOR_E"SUM: %d", sum);
 }

@@ -425,108 +425,37 @@ static void tasks_lights()
     uint8_t i = 0;
     lights_rgb_order colors = {.i_r = 0, .i_g = 1, .i_b = 2};
     lights_shader *shader;
-    lights_zone *zone = lights_set_zone(i++, 0, 0, 16, colors);
+    lights_zone *zone = lights_set_zone(i++, 0, 0, 50, colors);
     {
         shader = &zone->shader;
-        shader->type = SHADER_COLOR;
-        shader->cfg.shader_color = (lights_shader_cfg_color) {
-            .color = {
-                .r = 0,
-                .g = 30,
-                .b = 0
-            }
-        };
-        shader->need_render = true;
-    }
-    zone = lights_set_zone(i++, 0, 16, 18, colors);
-    {
-        shader = &zone->shader;
-        shader->type = SHADER_COLORS_FADE;
+        shader->type = SHADER_FADE;
         color_hsl pattern[] = {
-            {0, 1, 0.5f},
-            {120, 1, 0.1f},
-            {240, 1, 0.4f},
+            {350, 1, 0.4f},
+            {130, 1, 0.4f},
         };
         color_hsl *buf = (color_hsl*) malloc(sizeof(pattern));
         memcpy(buf, pattern, sizeof(pattern));
-        shader->cfg.shader_colors_fade = (lights_shader_cfg_colors_fade) {
-            .colors = buf,
-            .color_n = 3
-        };
-        shader->need_render = true;
-    }
-    zone = lights_set_zone(i++, 0, 34, 16, colors);
-    {
-        shader = &zone->shader;
-        shader->type = SHADER_COLORS_FADE;
-        color_hsl pattern[] = {
-            {358, 1, 0.3f},
-            {50, 1, 0.3f},
-        };
-        color_hsl *buf = (color_hsl*) malloc(sizeof(pattern));
-        memcpy(buf, pattern, sizeof(pattern));
-        shader->cfg.shader_colors_fade = (lights_shader_cfg_colors_fade) {
+        shader->cfg.shader_fade = (lights_shader_cfg_fade) {
             .colors = buf,
             .color_n = 2
         };
         shader->need_render = true;
     }
-    zone = lights_set_zone(i++, 1, 0, 10, colors);
+    zone = lights_set_zone(i++, 1, 0, 266, colors);
     {
         shader = &zone->shader;
-        shader->type = SHADER_COLORS_FADE;
-        shader->cfg.shader_colors_fade = (lights_shader_cfg_colors_fade) {
-            .colors = NULL,
-            .color_n = 0
-        };
-        shader->need_render = true;
-    }
-    zone = lights_set_zone(i++, 1, 70, 10, colors);
-    {
-        shader = &zone->shader;
-        shader->type = SHADER_COLORS_FADE;
+        shader->type = SHADER_FFT;
         color_hsl pattern[] = {
-            {0, 1, 0.01f}
+            {350, 1, 0.4f},
+            {130, 1, 0.4f},
         };
         color_hsl *buf = (color_hsl*) malloc(sizeof(pattern));
         memcpy(buf, pattern, sizeof(pattern));
-        shader->cfg.shader_colors_fade = (lights_shader_cfg_colors_fade) {
-            .colors = buf,
-            .color_n = 1
-        };
-        shader->need_render = true;
-    }
-    zone = lights_set_zone(i++, 1, 81, 10, colors);
-    {
-        shader = &zone->shader;
-        shader->type = SHADER_COLORS_FADE;
-        color_hsl pattern[] = {
-            {0, 1, 0.01f},
-            {120, 1, 0.01f},
-        };
-        color_hsl *buf = (color_hsl*) malloc(sizeof(pattern));
-        memcpy(buf, pattern, sizeof(pattern));
-        shader->cfg.shader_colors_fade = (lights_shader_cfg_colors_fade) {
+        shader->cfg.shader_fft = (lights_shader_cfg_fft) {
             .colors = buf,
             .color_n = 2
         };
-        shader->need_render = true;
-    }
-    zone = lights_set_zone(i++, 1, 92, 10, colors);
-    {
-        shader = &zone->shader;
-        shader->type = SHADER_COLORS_FADE;
-        color_hsl pattern[] = {
-            {0, 1, 0.01f},
-            {120, 1, 0.01f},
-            {240, 1, 0.01f},
-        };
-        color_hsl *buf = (color_hsl*) malloc(sizeof(pattern));
-        memcpy(buf, pattern, sizeof(pattern));
-        shader->cfg.shader_colors_fade = (lights_shader_cfg_colors_fade) {
-            .colors = buf,
-            .color_n = 3
-        };
+        lights_shader_init_fft(zone);
         shader->need_render = true;
     }
 
