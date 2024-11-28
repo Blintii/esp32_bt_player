@@ -51,6 +51,7 @@ typedef struct {
     bool is_right; // audio channel
     color_hsl *pixel_lut; // store each pixel color
     lights_shader_cfg_fft_band *bands;
+    float intensity;
 } lights_shader_cfg_fft;
 
 typedef struct {

@@ -237,15 +237,35 @@ static void lights_render_shader_fft(lights_zone *zone)
     ERR_IF_NULL_RETURN(cfg->bands);
     ERR_IF_NULL_RETURN(cfg->pixel_lut);
     color_hsl *color = cfg->pixel_lut;
+    color_hsl mod;
     color_rgb rgb;
+    float fft_res[DSP_FFT_RES_N];
+    lights_shader_cfg_fft_band *band = cfg->bands;
+    float rms;
+    dsp_fft_get_res(fft_res, cfg->is_right);
 
-    for(size_t i = 0; i < frame_buf->pixel_n; i++)
+    for(size_t px_i = 0; px_i < frame_buf->pixel_n; px_i++)
     {
-        rgb = color_hsl_to_rgb(*color++);
+        rms = 0;
+
+        for(size_t fft_i = band->fft_min; fft_i < band->fft_max; fft_i++)
+        {
+            rms += powf(fft_res[fft_i], 2.0f);
+        }
+
+        rms = sqrtf(rms / (float)band->fft_width);
+        mod = *color;
+        mod.lum *= rms * cfg->intensity;
+
+        if(mod.lum > color->lum) mod.lum = color->lum;
+
+        rgb = color_hsl_to_rgb(mod);
         buf[offset.i_r] = rgb.r;
         buf[offset.i_g] = rgb.g;
         buf[offset.i_b] = rgb.b;
         buf += 3;
+        color++;
+        band++;
     }
 
     zone->mled->need_update = true;
@@ -333,7 +353,7 @@ static void fft_band_map(lights_zone *zone)
 {
     lights_shader_cfg_fft *cfg = &zone->shader.cfg.shader_fft;
     lights_shader_cfg_fft_band *bands = cfg->bands;
-    size_t pixel_n = 30;//zone->frame_buf.pixel_n;
+    size_t pixel_n = zone->frame_buf.pixel_n;
     float fft_n = DSP_FFT_RES_N;
     float mult = fft_n - pixel_n;
     float i_max = pixel_n - 1.0f;

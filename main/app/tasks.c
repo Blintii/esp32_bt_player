@@ -65,7 +65,7 @@ void tasks_create()
     ESP_LOGI(TAG, "init variables OK");
     xTaskCreatePinnedToCore(tasks_throttler, "Throttler", 4096, NULL, 12, NULL, 1);
     xTaskCreatePinnedToCore(tasks_audio_player, "Audio Player", 4096, NULL, 12, NULL, 1);
-    xTaskCreatePinnedToCore(tasks_lights, "Lights", 4096, NULL, 12, NULL, 1);
+    xTaskCreatePinnedToCore(tasks_lights, "Lights", 10240, NULL, 12, NULL, 1);
     ESP_LOGI(TAG, "created tasks OK");
 }
 
@@ -441,7 +441,7 @@ static void tasks_lights()
         };
         shader->need_render = true;
     }
-    zone = lights_set_zone(i++, 1, 0, 266, colors);
+    zone = lights_set_zone(i++, 1, 0, 133, colors);
     {
         shader = &zone->shader;
         shader->type = SHADER_FFT;
@@ -453,7 +453,28 @@ static void tasks_lights()
         memcpy(buf, pattern, sizeof(pattern));
         shader->cfg.shader_fft = (lights_shader_cfg_fft) {
             .colors = buf,
-            .color_n = 2
+            .color_n = 2,
+            .intensity = 1.0f,
+            .is_right = false
+        };
+        lights_shader_init_fft(zone);
+        shader->need_render = true;
+    }
+    zone = lights_set_zone(i++, 1, 133, 133, colors);
+    {
+        shader = &zone->shader;
+        shader->type = SHADER_FFT;
+        color_hsl pattern[] = {
+            {350, 1, 0.4f},
+            {130, 1, 0.4f},
+        };
+        color_hsl *buf = (color_hsl*) malloc(sizeof(pattern));
+        memcpy(buf, pattern, sizeof(pattern));
+        shader->cfg.shader_fft = (lights_shader_cfg_fft) {
+            .colors = buf,
+            .color_n = 2,
+            .intensity = 1.0f,
+            .is_right = true
         };
         lights_shader_init_fft(zone);
         shader->need_render = true;
