@@ -13,8 +13,8 @@
 #include "dsp.h"
 
 
-#define RINGBUF_SIZE (30 * 1024)
-#define RINGBUF_TRIGGER_LEVEL (12 * 1024)
+#define RINGBUF_SIZE (32 * 1024)
+#define RINGBUF_TRIGGER_LEVEL (20 * 1024)
 
 
 typedef enum {
@@ -50,6 +50,8 @@ static RingbufHandle_t audio_stream_ringbuf = NULL;
 static audio_state_t audio_state = AUDIO_STATE_INIT;
 static tasks_signal_throttled throttled_signals[TASKS_INST_MAX][TASKS_SIG_MAX] = {0};
 static size_t dropped_bytes = 0;
+static size_t rip_count = 0;
+static size_t rip_sum = 0;
 
 
 void tasks_create()
@@ -75,22 +77,22 @@ void tasks_create()
     ESP_LOGI(TAG, "init variables OK");
     xTaskCreatePinnedToCore(tasks_throttler, "Throttler", 4096, NULL, 12, NULL, 1);
     xTaskCreatePinnedToCore(tasks_audio_player, "Audio Player", 4096, NULL, 12, NULL, 1);
-    xTaskCreatePinnedToCore(tasks_dsp, "DSP", 2560, NULL, 12, NULL, 1);
+    xTaskCreatePinnedToCore(tasks_dsp, "DSP", 3072, NULL, 12, NULL, 1);
     xTaskCreatePinnedToCore(tasks_lights, "Lights", 4096, NULL, 12, NULL, 1);
     ESP_LOGI(TAG, "created tasks OK");
 }
 
 void tasks_message(tasks_signal signal)
 {
-    switch(signal.type)
-    {
-        case TASKS_SIG_UNKNOWN: ESP_LOGW(TAG, "%s UNKNOWN", __func__); break;
-        case TASKS_SIG_AUDIO_STREAM_STARTED: ESP_LOGW(TAG, "%s AUDIO_STREAM_STARTED", __func__); break;
-        case TASKS_SIG_AUDIO_STREAM_SUSPEND: ESP_LOGW(TAG, "%s AUDIO_STREAM_SUSPEND", __func__); break;
-        case TASKS_SIG_AUDIO_DATA_SUFFICIENT: ESP_LOGW(TAG, "%s AUDIO_DATA_SUFFICIENT", __func__); break;
-        case TASKS_SIG_AUDIO_VOLUME: ESP_LOGW(TAG, "%s AUDIO_VOLUME", __func__); break;
-        default: ESP_LOGW(TAG, "%s invalid type", __func__); break;
-    }
+    // switch(signal.type)
+    // {
+    //     case TASKS_SIG_UNKNOWN: ESP_LOGW(TAG, "%s UNKNOWN", __func__); break;
+    //     case TASKS_SIG_AUDIO_STREAM_STARTED: ESP_LOGW(TAG, "%s AUDIO_STREAM_STARTED", __func__); break;
+    //     case TASKS_SIG_AUDIO_STREAM_SUSPEND: ESP_LOGW(TAG, "%s AUDIO_STREAM_SUSPEND", __func__); break;
+    //     case TASKS_SIG_AUDIO_DATA_SUFFICIENT: ESP_LOGW(TAG, "%s AUDIO_DATA_SUFFICIENT", __func__); break;
+    //     case TASKS_SIG_AUDIO_VOLUME: ESP_LOGW(TAG, "%s AUDIO_VOLUME", __func__); break;
+    //     default: ESP_LOGW(TAG, "%s invalid type", __func__); break;
+    // }
 
     switch(signal.type)
     {
@@ -233,15 +235,15 @@ static void tasks_handle_throttled_signal(tasks_signal_throttled *signal)
 
 static void tasks_send_throttled_signal(tasks_signal signal, TickType_t throttle_min_time)
 {
-    switch(signal.type)
-    {
-        case TASKS_SIG_UNKNOWN: ESP_LOGW(TAG, "%s UNKNOWN", __func__); break;
-        case TASKS_SIG_AUDIO_STREAM_STARTED: ESP_LOGW(TAG, "%s AUDIO_STREAM_STARTED", __func__); break;
-        case TASKS_SIG_AUDIO_STREAM_SUSPEND: ESP_LOGW(TAG, "%s AUDIO_STREAM_SUSPEND", __func__); break;
-        case TASKS_SIG_AUDIO_DATA_SUFFICIENT: ESP_LOGW(TAG, "%s AUDIO_DATA_SUFFICIENT", __func__); break;
-        case TASKS_SIG_AUDIO_VOLUME: ESP_LOGW(TAG, "%s AUDIO_VOLUME", __func__); break;
-        default: ESP_LOGW(TAG, "%s invalid type", __func__); break;
-    }
+    // switch(signal.type)
+    // {
+    //     case TASKS_SIG_UNKNOWN: ESP_LOGW(TAG, "%s UNKNOWN", __func__); break;
+    //     case TASKS_SIG_AUDIO_STREAM_STARTED: ESP_LOGW(TAG, "%s AUDIO_STREAM_STARTED", __func__); break;
+    //     case TASKS_SIG_AUDIO_STREAM_SUSPEND: ESP_LOGW(TAG, "%s AUDIO_STREAM_SUSPEND", __func__); break;
+    //     case TASKS_SIG_AUDIO_DATA_SUFFICIENT: ESP_LOGW(TAG, "%s AUDIO_DATA_SUFFICIENT", __func__); break;
+    //     case TASKS_SIG_AUDIO_VOLUME: ESP_LOGW(TAG, "%s AUDIO_VOLUME", __func__); break;
+    //     default: ESP_LOGW(TAG, "%s invalid type", __func__); break;
+    // }
 
     bool immediate = false;
     tasks_signal_throttled *sig_throt = &throttled_signals[signal.aim_task][signal.type];
@@ -290,7 +292,7 @@ static void tasks_audio_player()
             switch(signal.type)
             {
                 case TASKS_SIG_AUDIO_STREAM_STARTED: {
-                    ESP_LOGW(TAG, "%s AUDIO_STREAM_STARTED", __func__);
+                    // ESP_LOGW(TAG, "%s AUDIO_STREAM_STARTED", __func__);
 
                     if(audio_state < AUDIO_STATE_READY)
                     {
@@ -305,7 +307,7 @@ static void tasks_audio_player()
                     break;
                 }
                 case TASKS_SIG_AUDIO_STREAM_SUSPEND: {
-                    ESP_LOGW(TAG, "%s AUDIO_STREAM_SUSPEND", __func__);
+                    // ESP_LOGW(TAG, "%s AUDIO_STREAM_SUSPEND", __func__);
 
                     if(audio_state > AUDIO_STATE_STOP)
                     {
@@ -315,7 +317,7 @@ static void tasks_audio_player()
                     break;
                 }
                 case TASKS_SIG_AUDIO_DATA_SUFFICIENT: {
-                    ESP_LOGW(TAG, "%s AUDIO_DATA_SUFFICIENT", __func__);
+                    // ESP_LOGW(TAG, "%s AUDIO_DATA_SUFFICIENT", __func__);
 
                     if(audio_state == AUDIO_STATE_PRELOAD)
                     {
@@ -325,7 +327,7 @@ static void tasks_audio_player()
                     break;
                 }
                 case TASKS_SIG_AUDIO_VOLUME: {
-                    ESP_LOGW(TAG, "%s AUDIO_VOLUME", __func__);
+                    // ESP_LOGW(TAG, "%s AUDIO_VOLUME", __func__);
                     ach_volume(signal.arg.audio_volume.volume);
                     break;
                 }
@@ -336,7 +338,7 @@ static void tasks_audio_player()
 
             if(throttled_signals[TASKS_INST_AUDIO_PLAYER][signal.type].need_acknowledge)
             {
-                ESP_LOGW(TAG, "signal acknowledged %d", signal.type);
+                // ESP_LOGW(TAG, "signal acknowledged %d", signal.type);
                 throttled_signals[TASKS_INST_AUDIO_PLAYER][signal.type].need_acknowledge = false;
             }
         }
@@ -410,14 +412,14 @@ static void tasks_audio_state(audio_state_t new_state)
 
 static void tasks_signal_send(tasks_signal signal)
 {
-    switch(signal.type)
-    {
-        case TASKS_SIG_AUDIO_STREAM_STARTED: ESP_LOGW(TAG, "%s AUDIO_STREAM_STARTED", __func__); break;
-        case TASKS_SIG_AUDIO_STREAM_SUSPEND: ESP_LOGW(TAG, "%s AUDIO_STREAM_SUSPEND", __func__); break;
-        case TASKS_SIG_AUDIO_DATA_SUFFICIENT: ESP_LOGW(TAG, "%s AUDIO_DATA_SUFFICIENT", __func__); break;
-        case TASKS_SIG_AUDIO_VOLUME: ESP_LOGW(TAG, "%s AUDIO_VOLUME", __func__); break;
-        default: break;
-    }
+    // switch(signal.type)
+    // {
+    //     case TASKS_SIG_AUDIO_STREAM_STARTED: ESP_LOGW(TAG, "%s AUDIO_STREAM_STARTED", __func__); break;
+    //     case TASKS_SIG_AUDIO_STREAM_SUSPEND: ESP_LOGW(TAG, "%s AUDIO_STREAM_SUSPEND", __func__); break;
+    //     case TASKS_SIG_AUDIO_DATA_SUFFICIENT: ESP_LOGW(TAG, "%s AUDIO_DATA_SUFFICIENT", __func__); break;
+    //     case TASKS_SIG_AUDIO_VOLUME: ESP_LOGW(TAG, "%s AUDIO_VOLUME", __func__); break;
+    //     default: break;
+    // }
 
     switch(signal.aim_task)
     {
@@ -459,7 +461,16 @@ static void tasks_dsp()
         }
         else PRINT_TRACE();
 
-        xTaskDelayUntil(&lastWakeTime, TASKS_DSP_MIN_TIME);
+        if(pdTRUE != xTaskDelayUntil(&lastWakeTime, TASKS_DSP_MIN_TIME)) rip_sum++;
+
+        rip_count++;
+
+        if(1000 < rip_count)
+        {
+            ESP_LOGW(TAG, LOG_COLOR_W"DSP skipped %d tick under %d times", rip_sum, rip_count);
+            rip_count = 0;
+            rip_sum = 0;
+        }
     }
 }
 
@@ -494,16 +505,19 @@ static void tasks_lights()
         shader->type = SHADER_FFT;
         color_hsl pattern[] = {
             {0, 1, 0.5f},
-            {120, 1, 0.5f},
-            {240, 1, 0.5f}
+            {20, 1, 0.5f},
+            {165, 1, 0.5f},
+            {310, 1, 0.5f},
+            {340, 1, 0.5f}
         };
         color_hsl *buf = (color_hsl*) malloc(sizeof(pattern));
         memcpy(buf, pattern, sizeof(pattern));
         shader->cfg.shader_fft = (lights_shader_cfg_fft) {
             .colors = buf,
             .color_n = sizeof(pattern)/sizeof(color_hsl),
-            .intensity = 1.0f,
-            .is_right = true
+            .intensity = 100.0f,
+            .is_right = false,
+            .mirror = true
         };
         lights_shader_init_fft(zone);
         shader->need_render = true;
@@ -514,16 +528,19 @@ static void tasks_lights()
         shader->type = SHADER_FFT;
         color_hsl pattern[] = {
             {0, 1, 0.5f},
-            {120, 1, 0.5f},
-            {240, 1, 0.5f}
+            {20, 1, 0.5f},
+            {165, 1, 0.5f},
+            {310, 1, 0.5f},
+            {340, 1, 0.5f}
         };
         color_hsl *buf = (color_hsl*) malloc(sizeof(pattern));
         memcpy(buf, pattern, sizeof(pattern));
         shader->cfg.shader_fft = (lights_shader_cfg_fft) {
             .colors = buf,
             .color_n = sizeof(pattern)/sizeof(color_hsl),
-            .intensity = 1.0f,
-            .is_right = false
+            .intensity = 100.0f,
+            .is_right = true,
+            .mirror = false
         };
         lights_shader_init_fft(zone);
         shader->need_render = true;

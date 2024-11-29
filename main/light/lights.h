@@ -52,6 +52,7 @@ typedef struct {
     color_hsl *pixel_lut; // store each pixel color
     lights_shader_cfg_fft_band *bands;
     float intensity;
+    bool mirror;
 } lights_shader_cfg_fft;
 
 typedef struct {

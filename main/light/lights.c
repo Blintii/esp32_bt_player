@@ -232,6 +232,10 @@ static void lights_render_shader_fft(lights_zone *zone)
     float *fft_res = dsp_fft_get_res(cfg->is_right);
     lights_shader_cfg_fft_band *band = cfg->bands;
     float rms;
+    float fft_val;
+    float corr;
+
+    if(cfg->mirror) buf += frame_buf->data_size - 3;
 
     for(size_t px_i = 0; px_i < frame_buf->pixel_n; px_i++)
     {
@@ -239,10 +243,18 @@ static void lights_render_shader_fft(lights_zone *zone)
 
         for(size_t fft_i = band->fft_min; fft_i < band->fft_max; fft_i++)
         {
-            rms += powf(fft_res[fft_i], 2.0f);
+            fft_val = fft_res[fft_i];
+            /* apply higher frequency usually lower values correction
+             * correction mul range [1..100] */
+            corr = (fft_i * 99.0f);
+            corr /= (float)DSP_FFT_RES_N - 1.0f;
+            fft_val *= 1.0f + corr;
+            rms += powf(fft_val, 2.0f);
         }
 
         rms = sqrtf(rms / (float)band->fft_width);
+        /* apply LED brightness rough gamma correction */
+        rms *= rms;
         mod = *color;
         mod.lum *= rms * cfg->intensity;
 
@@ -252,7 +264,10 @@ static void lights_render_shader_fft(lights_zone *zone)
         buf[offset.i_r] = rgb.r;
         buf[offset.i_g] = rgb.g;
         buf[offset.i_b] = rgb.b;
-        buf += 3;
+
+        if(cfg->mirror) buf -= 3;
+        else buf += 3;
+
         color++;
         band++;
     }
@@ -361,13 +376,12 @@ static void fft_band_map(lights_zone *zone)
     lights_shader_cfg_fft *cfg = &zone->shader.cfg.shader_fft;
     lights_shader_cfg_fft_band *bands = cfg->bands;
     size_t pixel_n = zone->frame_buf.pixel_n;
-    float fft_n = DSP_FFT_RES_N;
+    float fft_n = DSP_FFT_RES_N - 1.0f;
     float mult = fft_n - pixel_n;
     float i_max = pixel_n - 1.0f;
-    /* TODO: for skip DC component should start from 1
-     *       and decrease fft_n - 1 !!! */
-    size_t cur_max = 0;
-    size_t last_max = 0;
+    /* start from 1. value (0. value is signal's DC component) */
+    size_t cur_max = 1;
+    size_t last_max = 1;
     size_t sum = 0;
     size_t width;
 
