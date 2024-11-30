@@ -19,6 +19,7 @@ void bt_gap_init()
     /* init bluetooth device */
     ERR_CHECK_RESET(esp_bt_gap_register_callback(gap_callback));
     ERR_CHECK_RESET(esp_bt_gap_set_device_name(BT_DEVICE_NAME));
+    ESP_LOGI(TAG, "init OK");
 }
 
 void bt_gap_show()

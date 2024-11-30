@@ -48,9 +48,9 @@ typedef struct {
 typedef struct {
     color_hsl *colors;
     size_t color_n;
+    lights_shader_cfg_fft_band *bands;
     bool is_right; // audio channel
     color_hsl *pixel_lut; // store each pixel color
-    lights_shader_cfg_fft_band *bands;
     float intensity;
     bool mirror;
 } lights_shader_cfg_fft;
@@ -69,8 +69,8 @@ typedef struct {
 
 typedef struct {
     mled_strip *mled;
-    mled_pixels frame_buf;
     lights_rgb_order colors;
+    mled_pixels frame_buf;
     lights_shader shader;
 } lights_zone;
 

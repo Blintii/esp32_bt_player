@@ -15,6 +15,7 @@ static void led_std_cfg(uint32_t clk_div, uint32_t duty);
 
 void sled_init()
 {
+    ESP_LOGI(TAG, "init...");
     ledc_timer_config_t ledc_cfg = {
         .speed_mode = LEDC_HIGH_SPEED_MODE,
         .duty_resolution = LEDC_TIMER_12_BIT,
@@ -34,7 +35,7 @@ void sled_init()
         .hpoint = 0
     };
     ERR_CHECK_RESET(ledc_channel_config(&ledc_ch_cfg));
-    ESP_LOGI(TAG, "blue LED init OK");
+    ESP_LOGI(TAG, "init OK");
 }
 
 void sled_set(led_std_mode mode)
@@ -57,6 +58,7 @@ void sled_set(led_std_mode mode)
             ERR_BAD_CASE(mode, "%d");
             break;
     }
+    list_tasks_stack_info();
 }
 
 /* 3906 div, 16bit: 1Hz

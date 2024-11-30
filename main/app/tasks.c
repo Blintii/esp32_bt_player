@@ -13,16 +13,12 @@
 #include "dsp.h"
 
 
-#define RINGBUF_SIZE (32 * 1024)
-#define RINGBUF_TRIGGER_LEVEL (20 * 1024)
-
-
 typedef enum {
     AUDIO_STATE_INIT,
     AUDIO_STATE_STOP, // audio input stream off, play out off
     AUDIO_STATE_READY, // audio stream started, waiting first audio packet
     AUDIO_STATE_PRELOAD, // audio stream coming, buffered data exist, but not enough to play out
-    AUDIO_STATE_PLAY, // audio stream coming, playing out buffered data
+    AUDIO_STATE_PLAY, // audio stream coming, send buffered data to audio interface DMA memory
     AUDIO_STATE_DROP, // audio stream too fast, can't playing out all buffered data
     AUDIO_STATE_FLUSH // audio stream off, but buffer need play out remaining data
 } audio_state_t;
@@ -41,15 +37,19 @@ static void tasks_lights();
 
 static const char *TAG = LOG_COLOR("91") "TASK" LOG_RESET_COLOR;
 static const char *TAGE = LOG_COLOR("91") "TASK" LOG_COLOR_E;
+/* used for handling throttled signals */
 static SemaphoreHandle_t throttler_semaphore = NULL;
+/* used for make thread safe the audio state changeing */
 static SemaphoreHandle_t audio_semaphore = NULL;
+/* used for make thread safe the DSP internal ringbuf r/w */
 static SemaphoreHandle_t dsp_in_semaphore = NULL;
+/* used for make thread safe the DSP FFT result values r/w */
 static SemaphoreHandle_t dsp_out_semaphore = NULL;
 static QueueHandle_t mails_audio_player = NULL;
 static RingbufHandle_t audio_stream_ringbuf = NULL;
-static audio_state_t audio_state = AUDIO_STATE_INIT;
-static tasks_signal_throttled throttled_signals[TASKS_INST_MAX][TASKS_SIG_MAX] = {0};
-static size_t dropped_bytes = 0;
+static tasks_signal_throttled throttled_signals[TASKS_INST_MAX][TASKS_SIG_MAX] = {0}; // semaphored with throttler_semaphore
+static audio_state_t audio_state = AUDIO_STATE_INIT; // semaphored with audio_semaphore
+static size_t dropped_bytes = 0; // semaphored with audio_semaphore
 static size_t rip_count = 0;
 static size_t rip_sum = 0;
 
@@ -69,17 +69,15 @@ void tasks_create()
     dsp_out_semaphore = xSemaphoreCreateBinary();
     ERR_IF_NULL_RESET(dsp_out_semaphore);
     xSemaphoreGive(dsp_out_semaphore);
-    mails_audio_player = xQueueCreate(15, sizeof(tasks_signal));
+    mails_audio_player = xQueueCreate(10, sizeof(tasks_signal));
     ERR_IF_NULL_RESET(mails_audio_player);
-    audio_stream_ringbuf = xRingbufferCreate(RINGBUF_SIZE, RINGBUF_TYPE_BYTEBUF);
-    ERR_IF_NULL_RESET(audio_stream_ringbuf);
-
     ESP_LOGI(TAG, "init variables OK");
-    xTaskCreatePinnedToCore(tasks_throttler, "Throttler", 4096, NULL, 12, NULL, 1);
-    xTaskCreatePinnedToCore(tasks_audio_player, "Audio Player", 4096, NULL, 12, NULL, 1);
-    xTaskCreatePinnedToCore(tasks_dsp, "DSP", 3072, NULL, 12, NULL, 1);
-    xTaskCreatePinnedToCore(tasks_lights, "Lights", 4096, NULL, 12, NULL, 1);
-    ESP_LOGI(TAG, "created tasks OK");
+
+    ERR_CHECK_RESET(pdPASS != xTaskCreatePinnedToCore(tasks_throttler, "Throttler", 1984, NULL, 12, NULL, 1));
+    ERR_CHECK_RESET(pdPASS != xTaskCreatePinnedToCore(tasks_audio_player, "Audio Player", 2304, NULL, 12, NULL, 1));
+    ERR_CHECK_RESET(pdPASS != xTaskCreatePinnedToCore(tasks_dsp, "DSP", 2048, NULL, 12, NULL, 1));
+    ERR_CHECK_RESET(pdPASS != xTaskCreatePinnedToCore(tasks_lights, "Lights", 2176, NULL, 12, NULL, 1));
+    ESP_LOGI(TAG, "create tasks OK");
 }
 
 void tasks_message(tasks_signal signal)
@@ -127,44 +125,97 @@ void tasks_audio_data(const uint8_t *data, size_t size)
             dropped_bytes += size;
             xSemaphoreGive(audio_semaphore);
         }
+        else PRINT_TRACE();
 
         return;
     }
 
-    if(pdTRUE == xRingbufferSend(audio_stream_ringbuf, data, size, 0))
+    if(audio_state < AUDIO_STATE_READY)
     {
-        if(audio_state == AUDIO_STATE_READY)
-        {
-            tasks_audio_state(AUDIO_STATE_PRELOAD);
-        }
+        ESP_LOGE(TAGE, "audio state not ready when audio stream comes");
+        return;
+    }
 
-        if(audio_state == AUDIO_STATE_PRELOAD)
-        {
-            size_t item_size;
-            vRingbufferGetInfo(audio_stream_ringbuf, NULL, NULL, NULL, NULL, &item_size);
+    if(!audio_stream_ringbuf)
+    {
+        ESP_LOGE(TAGE, "audio stream ringbuffer is NULL");
+        return;
+    }
 
-            if(item_size >= RINGBUF_TRIGGER_LEVEL)
+    bool drop = true;
+    bool force_wakeup_notify = false;
+    UBaseType_t buf_pos_free = 0,
+        buf_pos_acquire = 0,
+        buf_waiting = 0;
+    vRingbufferGetInfo(audio_stream_ringbuf, &buf_pos_free, NULL, NULL, &buf_pos_acquire, &buf_waiting);
+    /* free size calculatin method copied from ringbuf.c > prvGetCurMaxSizeByteBuf */
+    BaseType_t free_size = buf_pos_free - buf_pos_acquire;
+    if(free_size <= 0) free_size += AUDIO_BUF_LEN;
+
+    if(size < free_size)
+    {
+        if(pdTRUE == xRingbufferSend(audio_stream_ringbuf, data, size, 0))
+        {
+            drop = false;
+            buf_waiting += size;
+
+            if(audio_state == AUDIO_STATE_READY)
             {
-                tasks_audio_state(AUDIO_STATE_PLAY);
-
-                tasks_signal signal = {
-                    .aim_task = TASKS_INST_AUDIO_PLAYER,
-                    .type = TASKS_SIG_AUDIO_DATA_SUFFICIENT
-                };
-                tasks_message(signal);
+                tasks_audio_state(AUDIO_STATE_PRELOAD);
             }
         }
+        else PRINT_TRACE();
     }
-    else if(audio_state > AUDIO_STATE_STOP)
+
+    if(drop)
     {
+        if(audio_state == AUDIO_STATE_PRELOAD) force_wakeup_notify = true;
+
         tasks_audio_state(AUDIO_STATE_DROP);
+        size_t actual_size = size < free_size ? size : free_size;
+        /* size always have to a multiplication of
+         * AUDIO_SAMPLE_BYTE_LEN * AUDIO_CHANNEL_N
+         * (removing last 2 bit makes number divisible by 4) */
+        actual_size &= ~3;
+
+        if(pdTRUE != xRingbufferSend(audio_stream_ringbuf, data, actual_size, 0))
+        {
+            PRINT_TRACE();
+            actual_size = 0;
+        }
+
+        if(pdTRUE == xSemaphoreTake(audio_semaphore, portMAX_DELAY))
+        {
+            dropped_bytes += size - actual_size;
+            xSemaphoreGive(audio_semaphore);
+        }
+        else PRINT_TRACE();
+    }
+    else if(audio_state == AUDIO_STATE_PRELOAD)
+    {
+        if(buf_waiting >= AUDIO_BUF_TRIGGER_LEVEL)
+        {
+            tasks_audio_state(AUDIO_STATE_PLAY);
+            force_wakeup_notify = true;
+        }
+    }
+
+    if(force_wakeup_notify)
+    {
+        tasks_signal signal = {
+            .aim_task = TASKS_INST_AUDIO_PLAYER,
+            .type = TASKS_SIG_AUDIO_DATA_SUFFICIENT
+        };
+        tasks_message(signal);
     }
 }
 
 static void tasks_throttler()
 {
+    ESP_LOGI(TAG, "throttler started");
     TickType_t lastWakeTime;
 
+    ESP_LOGI(TAG, "throttler enter infinite loop");
     while(1)
     {
         lastWakeTime = xTaskGetTickCount();
@@ -273,14 +324,16 @@ static void tasks_send_throttled_signal(tasks_signal signal, TickType_t throttle
 
 static void tasks_audio_player()
 {
+    ESP_LOGI(TAG, "audio player started");
     tasks_signal signal;
     TickType_t tick;
-    uint32_t total_dma_buf_size = I2S_DMA_FRAME_N * I2S_DMA_BUF_N;
+    uint32_t total_dma_buf_size = I2S_DMA_BUF_SIZE * I2S_DMA_BUF_N;
     /* init audio peripheral */
     ach_control_init();
     ach_player_init(&total_dma_buf_size);
     tasks_audio_state(AUDIO_STATE_STOP);
 
+    ESP_LOGI(TAG, "audio player enter infinite loop");
     while(1)
     {
         /* if audio stream ongoing, no block the audio playing */
@@ -292,12 +345,18 @@ static void tasks_audio_player()
             switch(signal.type)
             {
                 case TASKS_SIG_AUDIO_STREAM_STARTED: {
-                    // ESP_LOGW(TAG, "%s AUDIO_STREAM_STARTED", __func__);
+                    ESP_LOGI(TAG, "%s AUDIO_STREAM_STARTED", __func__);
 
                     if(audio_state < AUDIO_STATE_READY)
                     {
-                        tasks_audio_state(AUDIO_STATE_READY);
-                        ach_player_start();
+                        audio_stream_ringbuf = xRingbufferCreate(AUDIO_BUF_LEN, RINGBUF_TYPE_BYTEBUF);
+
+                        if(audio_stream_ringbuf)
+                        {
+                            tasks_audio_state(AUDIO_STATE_READY);
+                            ach_player_start();
+                        }
+                        else PRINT_TRACE();
                     }
                     else if(audio_state == AUDIO_STATE_FLUSH)
                     {
@@ -307,7 +366,7 @@ static void tasks_audio_player()
                     break;
                 }
                 case TASKS_SIG_AUDIO_STREAM_SUSPEND: {
-                    // ESP_LOGW(TAG, "%s AUDIO_STREAM_SUSPEND", __func__);
+                    ESP_LOGI(TAG, "%s AUDIO_STREAM_SUSPEND", __func__);
 
                     if(audio_state > AUDIO_STATE_STOP)
                     {
@@ -317,17 +376,12 @@ static void tasks_audio_player()
                     break;
                 }
                 case TASKS_SIG_AUDIO_DATA_SUFFICIENT: {
-                    // ESP_LOGW(TAG, "%s AUDIO_DATA_SUFFICIENT", __func__);
-
-                    if(audio_state == AUDIO_STATE_PRELOAD)
-                    {
-                        tasks_audio_state(AUDIO_STATE_PLAY);
-                    }
-
+                    // ESP_LOGI(TAG, "%s AUDIO_DATA_SUFFICIENT", __func__);
+                    /* just wake up from xQueueReceive to start playing audio */
                     break;
                 }
                 case TASKS_SIG_AUDIO_VOLUME: {
-                    // ESP_LOGW(TAG, "%s AUDIO_VOLUME", __func__);
+                    // ESP_LOGI(TAG, "%s AUDIO_VOLUME", __func__);
                     ach_volume(signal.arg.audio_volume.volume);
                     break;
                 }
@@ -346,18 +400,27 @@ static void tasks_audio_player()
         if(audio_state >= AUDIO_STATE_PLAY)
         {
             size_t item_size = 0;
-            void *data = xRingbufferReceiveUpTo(audio_stream_ringbuf, &item_size, 0, total_dma_buf_size);
+            void *data = xRingbufferReceiveUpTo(audio_stream_ringbuf, &item_size, 0, AUDIO_BUF_RECEIVE_SIZE);
 
             if(item_size > 0)
             {
                 ach_player_data(data, item_size);
                 vRingbufferReturnItem(audio_stream_ringbuf, data);
+                /* receive again to avoid split item causing buffer too fast fulling */
+                item_size = 0;
+                data = xRingbufferReceiveUpTo(audio_stream_ringbuf, &item_size, 0, AUDIO_BUF_RECEIVE_SIZE);
+
+                if(item_size > 0)
+                {
+                    ach_player_data(data, item_size);
+                    vRingbufferReturnItem(audio_stream_ringbuf, data);
+                }
 
                 if(audio_state == AUDIO_STATE_DROP)
                 {
                     vRingbufferGetInfo(audio_stream_ringbuf, NULL, NULL, NULL, NULL, &item_size);
 
-                    if(item_size < RINGBUF_TRIGGER_LEVEL)
+                    if(item_size < AUDIO_BUF_TRIGGER_LEVEL)
                     {
                         tasks_audio_state(AUDIO_STATE_PLAY);
                     }
@@ -368,10 +431,15 @@ static void tasks_audio_player()
                 if(audio_state == AUDIO_STATE_FLUSH)
                 {
                     tasks_audio_state(AUDIO_STATE_STOP);
+                    vRingbufferDelete(audio_stream_ringbuf);
+                    audio_stream_ringbuf = NULL;
                     ach_player_stop();
                 }
                 else
                 {
+                    /* halt this task instead of continous ringbuf polling for data
+                     * if new data comes, have to wake up this task with any task message,
+                     * TASKS_SIG_AUDIO_DATA_SUFFICIENT signal can be used for this purpose */
                     tasks_audio_state(AUDIO_STATE_READY);
                 }
             }
@@ -385,11 +453,11 @@ static void tasks_audio_state(audio_state_t new_state)
     {
         case AUDIO_STATE_INIT: ESP_LOGI(TAG, "audio state: INIT"); break;
         case AUDIO_STATE_STOP: ESP_LOGI(TAG, "audio state: STOP"); break;
-        case AUDIO_STATE_READY: ESP_LOGI(TAG, "audio state: READY"); break;
-        case AUDIO_STATE_PRELOAD: ESP_LOGI(TAG, "audio state: PRELOAD"); break;
-        case AUDIO_STATE_PLAY: ESP_LOGI(TAG, "audio state: PLAY"); break;
+        case AUDIO_STATE_READY: /*ESP_LOGI(TAG, "audio state: READY");*/ break;
+        case AUDIO_STATE_PRELOAD: /*ESP_LOGI(TAG, "audio state: PRELOAD");*/ break;
+        case AUDIO_STATE_PLAY: /*ESP_LOGI(TAG, "audio state: PLAY");*/ break;
         case AUDIO_STATE_FLUSH: ESP_LOGI(TAG, "audio state: FLUSH"); break;
-        case AUDIO_STATE_DROP: ESP_LOGI(TAG, "audio state: DROP"); break;
+        case AUDIO_STATE_DROP: ESP_LOGE(TAGE, "audio state: DROP"); break;
         default:
             ERR_BAD_CASE(new_state, "%d");
             return;
@@ -399,7 +467,7 @@ static void tasks_audio_state(audio_state_t new_state)
     {
         if(audio_state == AUDIO_STATE_DROP)
         {
-            ESP_LOGI(TAG, "dropped bytes: %d", dropped_bytes);
+            ESP_LOGE(TAGE, "dropped bytes: %d", dropped_bytes);
         }
 
         if(new_state == AUDIO_STATE_DROP) dropped_bytes = 0;
@@ -438,9 +506,11 @@ static void tasks_signal_send(tasks_signal signal)
 
 static void tasks_dsp()
 {
+    ESP_LOGI(TAG, "dsp started");
     dsp_init();
     TickType_t lastWakeTime;
 
+    ESP_LOGI(TAG, "dsp enter infinite loop");
     while(1)
     {
         lastWakeTime = xTaskGetTickCount();
@@ -478,86 +548,118 @@ static void tasks_dsp()
 
 static void tasks_lights()
 {
+    ESP_LOGI(TAG, "lights started");
+    vTaskDelay(pdMS_TO_TICKS(5000));
     lights_set_strip_size(0, 50);
     lights_set_strip_size(1, 266);
-    uint8_t i = 0;
+    // uint8_t i = 0;
     lights_rgb_order colors = {.i_r = 0, .i_g = 1, .i_b = 2};
-    lights_shader *shader;
-    lights_zone *zone = lights_set_zone(i++, 0, 0, 22, colors);
-    {
-        shader = &zone->shader;
-        shader->type = SHADER_FADE;
-        color_hsl pattern[] = {
-            {350, 1, 0.1f},
-            {10, 1, 0.1f},
-        };
-        color_hsl *buf = (color_hsl*) malloc(sizeof(pattern));
-        memcpy(buf, pattern, sizeof(pattern));
-        shader->cfg.shader_fade = (lights_shader_cfg_fade) {
-            .colors = buf,
-            .color_n = 2
-        };
-        shader->need_render = true;
-    }
-    zone = lights_set_zone(i++, 1, 60, 35, colors);
-    {
-        shader = &zone->shader;
-        shader->type = SHADER_FFT;
-        color_hsl pattern[] = {
-            {0, 1, 0.5f},
-            {20, 1, 0.5f},
-            {165, 1, 0.5f},
-            {310, 1, 0.5f},
-            {340, 1, 0.5f}
-        };
-        color_hsl *buf = (color_hsl*) malloc(sizeof(pattern));
-        memcpy(buf, pattern, sizeof(pattern));
-        shader->cfg.shader_fft = (lights_shader_cfg_fft) {
-            .colors = buf,
-            .color_n = sizeof(pattern)/sizeof(color_hsl),
-            .intensity = 100.0f,
-            .is_right = false,
-            .mirror = true
-        };
-        lights_shader_init_fft(zone);
-        shader->need_render = true;
-    }
-    zone = lights_set_zone(i++, 1, 96, 35, colors);
-    {
-        shader = &zone->shader;
-        shader->type = SHADER_FFT;
-        color_hsl pattern[] = {
-            {0, 1, 0.5f},
-            {20, 1, 0.5f},
-            {165, 1, 0.5f},
-            {310, 1, 0.5f},
-            {340, 1, 0.5f}
-        };
-        color_hsl *buf = (color_hsl*) malloc(sizeof(pattern));
-        memcpy(buf, pattern, sizeof(pattern));
-        shader->cfg.shader_fft = (lights_shader_cfg_fft) {
-            .colors = buf,
-            .color_n = sizeof(pattern)/sizeof(color_hsl),
-            .intensity = 100.0f,
-            .is_right = true,
-            .mirror = false
-        };
-        lights_shader_init_fft(zone);
-        shader->need_render = true;
-    }
+    // lights_shader *shader;
+    // lights_zone *zone = lights_set_zone(i++, 0, 0, 22, colors);
+    // {
+    //     shader = &zone->shader;
+    //     shader->type = SHADER_FADE;
+    //     color_hsl pattern[] = {
+    //         {350, 1, 0.1f},
+    //         {10, 1, 0.1f},
+    //     };
+    //     color_hsl *buf = (color_hsl*) malloc(sizeof(pattern));
+    //     memcpy(buf, pattern, sizeof(pattern));
+    //     shader->cfg.shader_fade = (lights_shader_cfg_fade) {
+    //         .colors = buf,
+    //         .color_n = 2
+    //     };
+    //     shader->need_render = true;
+    // }
+    // zone = lights_set_zone(i++, 1, 60, 35, colors);
+    // {
+    //     shader = &zone->shader;
+    //     shader->type = SHADER_FFT;
+    //     color_hsl pattern[] = {
+    //         {0, 1, 0.5f},
+    //         {20, 1, 0.5f},
+    //         {165, 1, 0.5f},
+    //         {310, 1, 0.5f},
+    //         {340, 1, 0.5f}
+    //     };
+    //     color_hsl *buf = (color_hsl*) malloc(sizeof(pattern));
+    //     memcpy(buf, pattern, sizeof(pattern));
+    //     shader->cfg.shader_fft = (lights_shader_cfg_fft) {
+    //         .colors = buf,
+    //         .color_n = sizeof(pattern)/sizeof(color_hsl),
+    //         .intensity = 100.0f,
+    //         .is_right = false,
+    //         .mirror = true
+    //     };
+    //     lights_shader_init_fft(zone);
+    //     shader->need_render = true;
+    // }
+    // zone = lights_set_zone(i++, 1, 96, 35, colors);
+    // {
+    //     shader = &zone->shader;
+    //     shader->type = SHADER_FFT;
+    //     color_hsl pattern[] = {
+    //         {0, 1, 0.5f},
+    //         {20, 1, 0.5f},
+    //         {165, 1, 0.5f},
+    //         {310, 1, 0.5f},
+    //         {340, 1, 0.5f}
+    //     };
+    //     color_hsl *buf = (color_hsl*) malloc(sizeof(pattern));
+    //     memcpy(buf, pattern, sizeof(pattern));
+    //     shader->cfg.shader_fft = (lights_shader_cfg_fft) {
+    //         .colors = buf,
+    //         .color_n = sizeof(pattern)/sizeof(color_hsl),
+    //         .intensity = 100.0f,
+    //         .is_right = true,
+    //         .mirror = false
+    //     };
+    //     lights_shader_init_fft(zone);
+    //     shader->need_render = true;
+    // }
     TickType_t lastWakeTime;
+    size_t item_n;
+    mled_strip *strip = &mled_channels[0];
+    float step = (float)strip->pixels.pixel_n / (float)AUDIO_BUF_LEN;
+    float max;
+    uint8_t *px_buf;
 
+    ESP_LOGI(TAG, "lights enter infinite loop");
     while(1)
     {
         lastWakeTime = xTaskGetTickCount();
 
-        if(pdTRUE == xSemaphoreTake(dsp_out_semaphore, portMAX_DELAY))
-        {
-            lights_main();
-            xSemaphoreGive(dsp_out_semaphore);
-        }
-        else PRINT_TRACE();
+        // if(pdTRUE == xSemaphoreTake(dsp_out_semaphore, portMAX_DELAY))
+        // {
+        //     lights_main();
+        //     xSemaphoreGive(dsp_out_semaphore);
+        // }
+        // else PRINT_TRACE();
 
+        item_n = 0;
+
+        if(audio_stream_ringbuf) item_n = AUDIO_BUF_LEN - xRingbufferGetCurFreeSize(audio_stream_ringbuf);
+
+        max = step * (float)item_n;
+        px_buf = strip->pixels.data;
+
+        for(size_t i = 0; i < strip->pixels.pixel_n; i++)
+        {
+            if(i < max)
+            {
+                px_buf[colors.i_r] = 150;
+                px_buf[colors.i_g] = 20;
+            }
+            else
+            {
+                px_buf[colors.i_r] = 1;
+                px_buf[colors.i_g] = 0;
+            }
+
+            px_buf += 3;
+        }
+
+        mled_update(strip);
         xTaskDelayUntil(&lastWakeTime, TASKS_LIGHTS_MIN_TIME);
     }
 }

@@ -35,6 +35,7 @@ void bt_avrcp_init()
     esp_avrc_rn_evt_cap_mask_t evt_set = {0};
     esp_avrc_rn_evt_bit_mask_operation(ESP_AVRC_BIT_MASK_OP_SET, &evt_set, ESP_AVRC_RN_VOLUME_CHANGE);
     ERR_CHECK_RESET(esp_avrc_tg_set_rn_evt_cap(&evt_set));
+    ESP_LOGI(TAG, "init OK");
 }
 
 static void avrcp_control_callback(esp_avrc_ct_cb_event_t event, esp_avrc_ct_cb_param_t *param)

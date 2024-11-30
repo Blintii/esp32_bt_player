@@ -18,7 +18,7 @@ void ach_player_init(uint32_t *total_dma_buf_size)
         .id = I2S_PERIPH_NUM,
         .role = I2S_ROLE_MASTER,
         .dma_desc_num = I2S_DMA_BUF_N,
-        .dma_frame_num = I2S_DMA_FRAME_N,
+        .dma_frame_num = I2S_DMA_BUF_SIZE,
         .auto_clear = true
     };
 
@@ -32,7 +32,7 @@ void ach_player_init(uint32_t *total_dma_buf_size)
             .clk_src = I2S_CLK_SRC_APLL,
             .mclk_multiple = I2S_MCLK_MULTIPLE_256
         },
-        .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO),
+        .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(AUDIO_SAMPLE_BIT_LEN, I2S_SLOT_MODE),
         .gpio_cfg = {
             .mclk = I2S_GPIO_UNUSED,
             .bclk = PIN_I2S_BCLK,
@@ -60,9 +60,9 @@ void ach_player_init(uint32_t *total_dma_buf_size)
 void ach_player_data(const void *src, size_t size)
 {
     size_t done = 0;
-    esp_err_t err = i2s_channel_write(tx_chan, src, size, &done, 500);
+    esp_err_t err = i2s_channel_write(tx_chan, src, size, &done, 20);
 
-    if((err != ESP_OK) || (done != size))
+    if((ESP_OK != err) || (size != done))
     {
         ESP_LOGE(TAGE, "I2S channel write: %s, %d/%d", esp_err_to_name(err), done, size);
     }

@@ -6,21 +6,28 @@
 #define __APP_DSP_H__
 
 
-#include <stdbool.h>
+#include "stdint.h"
+#include "stdbool.h"
+#include "stddef.h"
+
+#include "app_config.h"
 
 
-#define DSP_CHANNEL 2
-#define DSP_DATA_LEN sizeof(uint16_t) // 16 bit (2 byte)
 #define DSP_FFT_EXP 11
 #define DSP_FFT_IN_N (1 << DSP_FFT_EXP) // x power of 2
 #define DSP_FFT_RES_N (DSP_FFT_IN_N / 2)
-#define DSP_FFT_BUF_N (DSP_FFT_IN_N * DSP_CHANNEL * DSP_DATA_LEN)
+#define DSP_FFT_BUF_N (DSP_FFT_IN_N * AUDIO_CHANNEL_N * AUDIO_SAMPLE_BYTE_LEN)
 
 
 typedef struct {
 	float re;
 	float im;
 } dsp_comp;
+
+
+extern const float window_lut[DSP_FFT_IN_N];
+extern const dsp_comp twiddle_lut[DSP_FFT_RES_N];
+extern const uint16_t rev_bits_lut[DSP_FFT_IN_N];
 
 
 void dsp_init();

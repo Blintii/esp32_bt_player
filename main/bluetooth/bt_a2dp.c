@@ -29,6 +29,7 @@ void bt_a2dp_init()
     ERR_CHECK_RESET(esp_a2d_register_callback(a2dp_callback));
     ERR_CHECK_RESET(esp_a2d_sink_register_data_callback(a2dp_data_callback));
     ERR_CHECK_RESET(esp_a2d_sink_init());
+    ESP_LOGI(TAG, "init OK");
 }
 
 static void a2dp_callback(esp_a2d_cb_event_t event, esp_a2d_cb_param_t *param)

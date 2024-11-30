@@ -32,10 +32,12 @@ mled_strip mled_channels[MLED_CHANNEL_N] = {0};
 
 void mled_init()
 {
+    ESP_LOGI(TAG, "init...");
     /* APB can configured with other value, so need check this */
     ERR_CHECK_RESET(MLED_CLOCK_HZ != clk_hal_apb_get_freq_hz());
     mled_strip_init(0, PIN_LED_STRIP_0);
     mled_strip_init(1, PIN_LED_STRIP_1);
+    ESP_LOGI(TAG, "init OK");
 }
 
 void mled_set_size(mled_strip *strip, size_t pixel_n)
@@ -81,7 +83,7 @@ static void mled_strip_init(size_t index, gpio_num_t pin)
         .gpio_num = pin,
         .mem_block_symbols = RMT_CHANNEL_MEM_SIZE,
         .resolution_hz = MLED_CLOCK_HZ,
-        .trans_queue_depth = 4,
+        .trans_queue_depth = 2,
     };
     ERR_CHECK_RESET(rmt_new_tx_channel(&tx_chan_config, &strip->tx_channel));
     strip->base = (rmt_encoder_t) {

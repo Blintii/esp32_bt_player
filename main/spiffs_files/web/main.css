@@ -1,0 +1,364 @@
+:root {
+    --varColorMain: rgb(42, 77, 74);
+    --varColorDark: rgb(42, 55, 52);
+    --varColorBright: rgb(82, 139, 115);
+}
+
+.modbusBox {
+    display: flex;
+    flex-flow: row wrap;
+    justify-content: center;
+    align-items: center;
+}
+
+.borderBox {
+    border-color: var(--varColorMain);
+    border-width: .2em;
+    border-style: solid;
+}
+
+.uiControls {
+    display: flex;
+    flex-flow: wrap;
+    justify-content: center;
+    margin: 1em 1em 3em 1em;
+    gap: 0.8em;
+    filter: drop-shadow(0 0 1.5em rgba(0, 0, 0, 0.4));
+}
+
+.uiBox {
+    border-radius: 1.5em;
+    overflow: hidden;
+}
+
+.uiHeader {
+    background: var(--varColorMain);
+    text-align: center;
+    font-size: 1.5em;
+    margin-bottom: 0.5em;
+    padding: 0 1.5em 0.2em 1.5em;
+}
+
+.uiBody {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 0.5em;
+    margin: 0.5em 0.5em;
+    padding: 0.2em;
+    justify-content: center;
+}
+
+.uiItem {
+    border-radius: 1em;
+}
+
+.titleBox {
+    font-size: 2em;
+    display: flex;
+    flex-flow: row wrap;
+    column-gap: 0.4em;
+    justify-content: space-evenly;
+    flex-basis: 100%;
+    padding: 0 20vw;
+}
+
+.titleBox > * {
+    padding: 0.1em;
+}
+
+.iconPrefixBox {
+    display: flex;
+    column-gap: 0.2em;
+}
+
+.clipPathIcon {
+    width: 1.2em;
+    height: 1.2em;
+    background: var(--varColorText);
+}
+
+.uiDeviceAddressBox {
+    cursor: text;
+}
+
+.uiDeviceAddressBox * {
+    transition: outline 300ms ease-in-out,
+        background-color 300ms ease-in-out,
+        filter 300ms ease-in-out,
+        color 300ms ease-in-out;
+}
+
+.uiDeviceAddress {
+    display: flex;
+    column-gap: 0.2em;
+    padding: 0 0.2em;
+    border-radius: 0.4em;
+    outline-width: 0.15em;
+    outline-style: solid;
+    outline-color: transparent;
+}
+
+.uiDeviceAddressText {
+    display: inline-block;
+    background: none;
+    color: inherit;
+    border: none;
+    font-size: 1em;
+    padding: 0;
+    margin: 0;
+    outline: none;
+    transition: min-width 300ms ease-in-out;
+    min-width: 0.1em;
+}
+
+.uiDeviceAddressText:focus {
+    min-width: 1.3em;
+}
+
+.uiDeviceAddress:has(.uiDeviceAddressText:focus) {
+    outline-color: var(--varColorText);
+}
+
+.uiDeviceAddress:has(.uiDeviceAddressText:focus) .clipPathIcon {
+    background-color: var(--varColorBright);
+}
+
+.uiDeviceAddress:has(.uiDeviceAddressText:focus) .uiDeviceAddressPrefix {
+    color: var(--varColorBright);
+}
+
+.uiDeviceAddressBox:has(.uiDeviceAddressText:focus) .uiDeviceAddressSet {
+    filter: drop-shadow(0 0 0.1em rgb(255, 254, 250))
+        drop-shadow(0 0 0.4em rgb(255, 254, 250))
+        drop-shadow(0 0 0.8em rgb(255, 254, 250));
+}
+
+.uiDeviceDelete {
+    cursor: pointer;
+}
+
+.uiDeviceDelete.deviceNotExist {
+    cursor: not-allowed;
+}
+
+.uiDeviceDelete.deviceNotExist .clipPathIcon {
+    background: var(--varColorMain);
+}
+
+.uiCheckBox {
+    font-size: 2em;
+    cursor: pointer;
+    display: flex;
+    flex-flow: row nowrap;
+    align-items: center;
+    transition: filter 300ms ease-in-out;
+}
+
+.uiCheckBoxFig {
+    line-height: 1.2em;
+    width: 1.1em;
+    height: 1.1em;
+    border: solid .1em;
+    border-color: var(--varColorMain);
+    border-radius: .3em;
+    overflow: hidden;
+    position: relative;
+    transition: border-color 300ms ease-in-out;
+}
+
+.uiCheckBoxFig > * {
+    clip-path: url(#path-checkMark);
+    border-radius: .3em;
+    position: absolute;
+    left: -0.08em;
+    top: -0.08em;
+    right: -0.06em;
+    bottom: -0.06em;
+    transform: scale(0) rotateZ(180deg);
+    transition: all 420ms cubic-bezier(0, 0.02, 0, 1);
+    background-color: var(--varColorBright);
+}
+
+.uiCheckBoxText {
+    color: var(--varColorMain);
+    margin: 0 .6em 0 .3em;
+    transition: color 300ms ease-in-out;
+}
+
+.uiCheckBox.checked > .uiCheckBoxFig {
+    border-color: var(--varColorBright);
+}
+
+.uiCheckBox.checked > .uiCheckBoxFig > * {
+    transition: all 420ms cubic-bezier(0.54, 0.01, 0, 1.49);
+    transform: scale(1) rotateZ(0);
+}
+
+.uiCheckBox.checked:not(.deniedCheckBox) > .uiCheckBoxText {
+    color: var(--varColorText);
+    text-shadow: 0 0 .6em rgb(255, 254, 250);
+}
+
+.uiCheckBox.checked:not(.deniedCheckBox) {
+    filter: drop-shadow(0 0 .3em rgba(255, 254, 250, 0.4));
+}
+
+.uiCheckBox.deniedCheckBox {
+    cursor: not-allowed;
+}
+
+.uiCheckBox.deniedCheckBox > .uiCheckBoxFig {
+    border-color: var(--varColorDark);
+}
+
+.uiCheckBox.deniedCheckBox.checked > .uiCheckBoxFig {
+    color: var(--varColorDark);
+    background-color: none;
+}
+
+.uiCheckBox.deniedCheckBox.checked > .uiCheckBoxFig > * {
+    background-color: transparent;
+}
+
+.uiCheckBox.deniedCheckBox > .uiCheckBoxText {
+    color: var(--varColorDark);
+}
+
+.LED {
+    font-size: 2em;
+    display: flex;
+    flex-flow: row nowrap;
+    align-items: center;
+    transition: filter 300ms ease-in-out;
+}
+
+.ledBulb {
+    min-width: 1.1em;
+    min-height: 1.1em;
+    border: solid .1em;
+    border-color: var(--varColorMain);
+    border-radius: 100%;
+    transition: border-color 300ms ease-in-out,
+                background-color 300ms ease-in-out;
+}
+
+.ledText {
+    color: var(--varColorMain);
+    margin: 0 .6em 0 .3em;
+    transition: color 300ms ease-in-out;
+}
+
+.LED.on {
+    filter: drop-shadow(0 0 .3em rgba(255, 254, 250, 0.4));
+}
+
+.LED.on > .ledText {
+    color: var(--varColorText);
+    text-shadow: 0 0 .6em rgb(255, 254, 250);
+}
+
+.LED.on > .ledBulb {
+    background-color: var(--varColorBright);
+    border-color: var(--varColorBright);
+}
+
+#pageHeader {
+    font-size: 2em;
+    font-weight: bold;
+    padding: 0.5em;
+    display: none;
+    position: sticky;
+    top: 0;
+    margin: -0.5em -0.5em 1em -0.5em;
+    z-index: 10;
+}
+
+#headerText {
+    text-align: center;
+}
+
+#deleteDialog {
+    margin-top: 10vh;
+    background-color: var(--varColorBG_1);
+    color: var(--varColorText);
+    border-color: var(--varColorMain);
+    border-width: .2em;
+    border-style: solid;
+    border-radius: 1.6em;
+    filter: drop-shadow(0 0 1em rgb(0, 0, 0))
+        drop-shadow(0 0 4em rgb(0, 0, 0));
+    transition: all 300ms ease-in-out;
+}
+
+#deleteDialog:not(.openedDialog) {
+    transform: scale(0);
+}
+
+#deleteDialog.openedDialog {
+    transform: scale(1);
+}
+
+#deleteDialog:focus {
+    outline: none;
+}
+
+#deleteDialog::backdrop {
+    transition: all 300ms ease-in-out;
+    background: radial-gradient(closest-side, rgba(128, 0, 0, 0.2) 60%, rgba(180, 0, 0, 0.5) 160%);
+    opacity: 0;
+}
+
+#deleteDialog.openedDialog::backdrop {
+    opacity: 1;
+}
+
+#deleteText {
+    font-size: 1.6em;
+    margin-bottom: 1rem;
+}
+
+#deleteDialogButtons {
+    display: flex;
+    flex-flow: row wrap;
+    column-gap: 1em;
+}
+
+.deleteDialogButtons > button {
+    font-size: 1.2em;
+    padding: 0.6rem;
+    margin: 0.2rem;
+    background: none;
+    color: var(--varColorText);
+    border-color: var(--varColorBright);
+    border-width: .15em;
+    border-style: solid;
+    border-radius: 0.8em;
+    outline: none;
+}
+
+.deleteDialogButtons > button:focus {
+    background: var(--varColorBright);
+}
+
+#deleteButtonConfirm {
+    background: rgb(180, 0, 0);
+    border-color: rgb(180, 0, 0);
+    font-weight: bold;
+}
+
+#deleteButtonConfirm:focus {
+    background: rgb(255, 20, 10);
+    border-color: rgb(255, 20, 10);
+}
+
+/* max-width should larger than uiBody's normal width */
+@media (max-width: 56em) {
+    .uiBody {
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+    .titleBox {
+        justify-content: center;
+        padding: 0;
+    }
+}

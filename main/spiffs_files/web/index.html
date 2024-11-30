@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vezérlőpult</title>
+    <style>
+        :root {
+            --varColorBG_1: rgb(11, 22, 21);
+            --varColorBG_2: rgb(29, 12, 9);
+            --varColorBG_3: rgb(16, 3, 31);
+            --varColorText: white;
+        }
+
+        html {
+            font-family: sans-serif;
+            color: var(--varColorText);
+            /* margin settings above: fix scrollbar appearing jump glitch */
+            margin-left: calc(100vw - 100%);
+            margin-right: 0;
+        }
+
+        body {
+            margin: 0;
+            padding: 1em;
+            box-sizing: border-box;
+        }
+
+        #BG_gradient {
+            background: radial-gradient(circle at 68% 52%, var(--varColorBG_1) 0, var(--varColorBG_2) 57%, var(--varColorBG_3) 100%);
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            width: 100vw;
+            z-index: -100;
+        }
+
+        #default_text {
+            margin-top: 10vh;
+            font-size: 3em;
+            text-align: center;
+        }
+    </style>
+    <link rel="icon" href="favicon.ico">
+    <link rel="stylesheet" href="main.css">
+</head>
+<body>
+    <div id="BG_gradient"></div>
+    <div id="pageHeader">
+        <div id="headerText"></div>
+    </div>
+    <div id="default_text">Loading...</div>
+    <dialog id="deleteDialog">
+        <div id="deleteText">Delete?</div>
+        <div class="deleteDialogButtons">
+            <button id="deleteButtonCancel">Cancel</button>
+            <button id="deleteButtonConfirm">Delete</button>
+        </div>
+    </dialog>
+
+    <!-- TEMPLATES -->
+    <template id="tmpModbusBox">
+        <div class="modbusBox">
+            <div class="titleBox">
+                <div class="iconPrefixBox">
+                    <div class="clipPathIcon" style="clip-path: url(#path-tag);"></div>
+                    <b class="deviceName">add</b>
+                </div>
+                <div class="uiDeviceAddressBox iconPrefixBox">
+                    <div class="uiDeviceAddress">
+                        <div class="clipPathIcon" style="clip-path: url(#path-mail);"></div>
+                        <div><span class="uiDeviceAddressPrefix">0x</span><span class="uiDeviceAddressText" contenteditable></span></div>
+                    </div>
+                    <div class="uiDeviceAddressSet">
+                        <div class="clipPathIcon" style="clip-path: url(#path-edit);"></div>
+                    </div>
+                </div>
+                <div class="uiDeviceDelete deviceNotExist">
+                    <div class="clipPathIcon" style="clip-path: url(#path-trash);"></div>
+                </div>
+            </div>
+            <div class="uiControls"></div>
+        </div>
+    </template>
+    <template id="tmpControlItem">
+        <div class="uiBox borderBox">
+            <div class="uiHeader">text</div>
+            <div class="uiBody"></div>
+        </div>
+    </template>
+    <template id="tmpCheckBox">
+        <div class="uiCheckBox">
+            <div class="uiCheckBoxFig">
+                <div></div>
+            </div>
+            <div class="uiCheckBoxText"></div>
+        </div>
+    </template>
+    <template id="tmpLED">
+        <div class="LED">
+            <div class="ledBulb"></div>
+            <div class="ledText"></div>
+        </div>
+    </template>
+
+    <!-- VECTOR GRAPHICS -->
+    <svg width="0" height="0">
+        <clipPath id="path-checkMark" clipPathUnits="objectBoundingBox">
+            <path d="M.4116.8632C.3883.8632.3662.8523.3521.8336L.1606.5807a.0746.0746 90 01.0145-.1046.0746.0746 90 01.1047.0145l.1259.1663.3167-.5086a.0749.0749 90 01.103-.0238c.035.0218.0458.0678.0239.1029L.475.828a.0745.0745 90 01-.06.0351C.414.8631.413.8632.4116.8632L.4 1.02h.62V-.02H-.02V1.02H.42z"/>
+        </clipPath>
+        <clipPath id="path-mail" clipPathUnits="objectBoundingBox">
+            <path d="m.5.5424.44-.28V.25A.08.08 90 00.86.17H.14A.08.08 90 00.06.25v.0124ZM.5428.61a.08.08 90 01-.0856 0L.06.3576V.73a.08.08 90 00.08.08H.86A.08.08 90 00.94.73V.3576Z"/>
+        </clipPath>
+        <clipPath id="path-tag" clipPathUnits="objectBoundingBox">
+            <path d="M.4684.9219.9281.4623C.9465.4439.9569.4188.9569.3926V.138C.9569.0835.9128.0394.8583.0394H.6036C.5775.0394.5524.0498.534.0683L.0743.5279C.0358.5664.0358.6287.0743.6672L.329.9219c.0385.0385.1009.0385.1394 0ZM.6728.2304C.6711.1848.715.1353.7662.1359.823.1364.8601.1792.8579.2298.8567.2805.8129.3209.7662.3226.7094.3255.67.277.6728.2304ZM.3019.5532C.2862.5384.2892.5221.3019.5085L.5105.2998C.5251.2854.5431.2849.5571.299S.5715.331.5583.3459L.3475.555C.33.5713.3171.5685.3025.555ZM.4414.6927C.4256.6792.4268.6612.4408.6471L.6495.4384C.6596.4283.6812.4237.6963.4389s.0146.0327 0 .0473l-.206.207C.4712.709.456.7061.4431.6944Z"/>
+        </clipPath>
+        <clipPath id="path-edit" clipPathUnits="objectBoundingBox">
+            <path d="M.9234.2995.8426.3804C.8343.3886.8209.3886.8127.3804L.6181.1858C.6099.1774.6099.1641.6181.1559L.6989.0751c.0328-.0328.0861-.0328.119 0L.9234.1805c.033.0328.033.0861 0 .119ZM.5487.2254.0883.6858.0511.8988c-.0051.0288.02.0537.0487.0487L.3128.9102.7732.4498C.7814.4415.7814.4282.7732.42L.5786.2254C.5702.2172.5569.2172.5487.2254ZM.268.6462C.2583.6367.2583.6212.268.6116l.27-.27c.0096-.0096.025-.0097.0347 0s.0097.0251 0 .0348l-.27.27C.2931.656.2777.656.268.6463ZM.2046.7937H.2888V.8574L.1757.8772.1212.8227.141.7096H.2046V.7937Z"/>
+        </clipPath>
+        <clipPath id="path-trash" clipPathUnits="objectBoundingBox">
+            <path d="M.1769.325.2146.8339C.2193.8965.2715.945.3343.945H.6657C.7285.945.7807.8965.7854.8339L.8231.325H.1769ZM.34.085c0-.0221.0179-.04.04-.04H.62c.0221 0 .04.0179.04.04v.04h.2C.8821.125.9.1429.9.165v.04C.9.2271.8821.245.86.245H.14C.1179.245.1.2271.1.205V.165C.1.1429.1179.125.14.125h.2V.085Z"/>
+        </clipPath>
+    </svg>
+
+    <!-- SCRIPTS -->
+    <script src="classes.js"></script>
+    <script src="com.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>
