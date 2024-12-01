@@ -48,7 +48,7 @@
  * Bluetooth stack and I2S DMA channel memory
  *  it should be the multiple of audio packet size
  *  audio packet size: sample size * channel number */
-#define AUDIO_BUF_LEN (3600 * (AUDIO_SAMPLE_BYTE_LEN * AUDIO_CHANNEL_N))
+#define AUDIO_BUF_LEN       (3600 * (AUDIO_SAMPLE_BYTE_LEN * AUDIO_CHANNEL_N))
 /*
  * the trigger level when started writing the buffered
  * audio packets to I2S DMA memory buffer
@@ -64,6 +64,8 @@
 #define AUDIO_BUF_TRIGGER_LEVEL (1100 * (AUDIO_SAMPLE_BYTE_LEN * AUDIO_CHANNEL_N))
 /* too large value increase packet dropping */
 #define AUDIO_BUF_RECEIVE_SIZE (644 * (AUDIO_SAMPLE_BYTE_LEN * AUDIO_CHANNEL_N))
+
+#define LIGHTS_ZONES_SIZE   20
 
 
 #endif /* __APP_CONFIG_H__ */

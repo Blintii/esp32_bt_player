@@ -7,8 +7,6 @@
 #include "dsp.h"
 
 
-#define LIGHTS_ZONES_SIZE 20
-
 typedef enum {
     FADING_TYPE_SHADER_FADE,
     FADING_TYPE_SHADER_FFT,

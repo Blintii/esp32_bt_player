@@ -17,6 +17,7 @@
 #include "web.h"
 #include "dns_server.h"
 #include "file_system.h"
+#include "storage.h"
 
 
 static const char *TAG = LOG_COLOR("37") "APP";
@@ -107,6 +108,8 @@ void app_main(void)
     ESP_LOGI(TAG, "DNS server started OK");
     /* web server will serve clients with captive portal web page */
     ERR_CHECK(web_start_server());
+
+    storage_config_parse();
 
     vTaskDelay(pdMS_TO_TICKS(1000));
     list_tasks_stack_info();

@@ -15,6 +15,7 @@
 
 cJSON *storage_load(void);
 void storage_save(cJSON *json);
+void storage_config_parse();
 
 
 #endif /* STORAGE_H */
