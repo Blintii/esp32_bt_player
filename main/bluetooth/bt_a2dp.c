@@ -47,7 +47,6 @@ static void a2dp_callback(esp_a2d_cb_event_t event, esp_a2d_cb_param_t *param)
             if(param->conn_stat.state == ESP_A2D_CONNECTION_STATE_DISCONNECTED)
             {
                 bt_gap_show();
-                list_tasks_stack_info();
             }
             else if(param->conn_stat.state == ESP_A2D_CONNECTION_STATE_CONNECTED)
             {

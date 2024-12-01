@@ -29,6 +29,8 @@ static void tasks_handle_throttled_signal(tasks_signal_throttled *signal);
 static void tasks_send_throttled_signal(tasks_signal signal, TickType_t throttle_min_time);
 static void tasks_audio_player();
 static void tasks_audio_state(audio_state_t new_state);
+static bool tasks_audio_stream_prepare();
+static void tasks_audio_stream_terminate();
 static void tasks_signal_send(tasks_signal signal);
 static void tasks_dsp();
 static void tasks_lights();
@@ -349,14 +351,7 @@ static void tasks_audio_player()
 
                     if(audio_state < AUDIO_STATE_READY)
                     {
-                        audio_stream_ringbuf = xRingbufferCreate(AUDIO_BUF_LEN, RINGBUF_TYPE_BYTEBUF);
-
-                        if(audio_stream_ringbuf)
-                        {
-                            tasks_audio_state(AUDIO_STATE_READY);
-                            ach_player_start();
-                        }
-                        else PRINT_TRACE();
+                        if(tasks_audio_stream_prepare()) tasks_audio_state(AUDIO_STATE_READY);
                     }
                     else if(audio_state == AUDIO_STATE_FLUSH)
                     {
@@ -431,9 +426,7 @@ static void tasks_audio_player()
                 if(audio_state == AUDIO_STATE_FLUSH)
                 {
                     tasks_audio_state(AUDIO_STATE_STOP);
-                    vRingbufferDelete(audio_stream_ringbuf);
-                    audio_stream_ringbuf = NULL;
-                    ach_player_stop();
+                    tasks_audio_stream_terminate();
                 }
                 else
                 {
@@ -478,6 +471,68 @@ static void tasks_audio_state(audio_state_t new_state)
     else PRINT_TRACE();
 }
 
+static bool tasks_audio_stream_prepare()
+{
+    bool ret = false;
+
+    if(audio_stream_ringbuf) ESP_LOGW(TAG, "audio stream not terminated properly before");
+    else audio_stream_ringbuf = xRingbufferCreate(AUDIO_BUF_LEN, RINGBUF_TYPE_BYTEBUF);
+
+    if(audio_stream_ringbuf)
+    {
+        if(pdTRUE == xSemaphoreTake(dsp_in_semaphore, portMAX_DELAY))
+        {
+            if(pdTRUE == xSemaphoreTake(dsp_out_semaphore, portMAX_DELAY))
+            {
+                if(dsp_fft_buf_create())
+                {
+                    ach_player_start();
+                    ret = true;
+                    ESP_LOGI(TAG, "audio stream prepared");
+                }
+                else dsp_fft_buf_del();
+
+                xSemaphoreGive(dsp_out_semaphore);
+            }
+            else PRINT_TRACE();
+
+            xSemaphoreGive(dsp_in_semaphore);
+        }
+        else PRINT_TRACE();
+    }
+    else PRINT_TRACE();
+
+    if(!ret)
+    {
+        ESP_LOGE(TAGE, "audio stream prepare fail cleanup");
+        vRingbufferDelete(audio_stream_ringbuf);
+        audio_stream_ringbuf = NULL;
+    }
+
+    return ret;
+}
+
+static void tasks_audio_stream_terminate()
+{
+    vRingbufferDelete(audio_stream_ringbuf);
+    audio_stream_ringbuf = NULL;
+    ach_player_stop();
+
+    if(pdTRUE == xSemaphoreTake(dsp_in_semaphore, portMAX_DELAY))
+    {
+        if(pdTRUE == xSemaphoreTake(dsp_out_semaphore, portMAX_DELAY))
+        {
+            dsp_fft_buf_del();
+            ESP_LOGI(TAG, "audio stream terminated");
+            xSemaphoreGive(dsp_out_semaphore);
+        }
+        else PRINT_TRACE();
+
+        xSemaphoreGive(dsp_in_semaphore);
+    }
+    else PRINT_TRACE();
+}
+
 static void tasks_signal_send(tasks_signal signal)
 {
     // switch(signal.type)
@@ -507,7 +562,6 @@ static void tasks_signal_send(tasks_signal signal)
 static void tasks_dsp()
 {
     ESP_LOGI(TAG, "dsp started");
-    dsp_init();
     TickType_t lastWakeTime;
 
     ESP_LOGI(TAG, "dsp enter infinite loop");
@@ -515,21 +569,25 @@ static void tasks_dsp()
     {
         lastWakeTime = xTaskGetTickCount();
 
-        if(pdTRUE == xSemaphoreTake(dsp_in_semaphore, portMAX_DELAY))
+        /* DSP buffers only available from at least READY audio state */
+        if(audio_state >= AUDIO_STATE_READY)
         {
-            /* before fft need latest audio data be copied to work buf */
-            dsp_work_buf_init();
-            xSemaphoreGive(dsp_in_semaphore);
-            dsp_fft_do();
-
-            if(pdTRUE == xSemaphoreTake(dsp_out_semaphore, portMAX_DELAY))
+            if(pdTRUE == xSemaphoreTake(dsp_in_semaphore, portMAX_DELAY))
             {
-                dsp_fft_finalize();
-                xSemaphoreGive(dsp_out_semaphore);
+                /* before fft need latest audio data be copied to work buf */
+                dsp_work_buf_init();
+                xSemaphoreGive(dsp_in_semaphore);
+                dsp_fft_do();
+
+                if(pdTRUE == xSemaphoreTake(dsp_out_semaphore, portMAX_DELAY))
+                {
+                    dsp_fft_finalize();
+                    xSemaphoreGive(dsp_out_semaphore);
+                }
+                else PRINT_TRACE();
             }
             else PRINT_TRACE();
         }
-        else PRINT_TRACE();
 
         if(pdTRUE != xTaskDelayUntil(&lastWakeTime, TASKS_DSP_MIN_TIME)) rip_sum++;
 

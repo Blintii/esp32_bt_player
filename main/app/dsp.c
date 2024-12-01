@@ -9,13 +9,13 @@
 
 static const char *TAG = LOG_COLOR("37") "DSP";
 static const char *TAGE = LOG_COLOR("37") "DSP" LOG_COLOR_E;
-static dsp_comp fft_work_r[DSP_FFT_IN_N] = {0};
-static dsp_comp fft_work_l[DSP_FFT_IN_N] = {0};
-static float fft_res_r[DSP_FFT_RES_N] = {0};
-static float fft_res_l[DSP_FFT_RES_N] = {0};
+static dsp_comp *fft_work_r = NULL;
+static dsp_comp *fft_work_l = NULL;
+static float *fft_res_r = NULL;
+static float *fft_res_l = NULL;
 
 /* ringbuf contains DSP_DATA_LEN width signed values */
-static uint8_t ringbuf[DSP_FFT_BUF_N] = {0};
+static uint8_t *ringbuf = NULL;
 /* ringbuf_i means the oldest data index,
  * which pointed the data that can override first,
  * and than become latest data */
@@ -28,20 +28,36 @@ static void butterfly_w0(dsp_comp* A, dsp_comp* B);
 static void normalize_output(dsp_comp* in, float* out);
 
 
-void dsp_init()
+bool dsp_fft_buf_create()
 {
-    ESP_LOGI(TAG, "init...");
-    // fft_work_r = (dsp_comp*)heap_caps_calloc(DSP_FFT_IN_N, sizeof(dsp_comp), MALLOC_CAP_32BIT);
-    ERR_IF_NULL_RESET(fft_work_r);
-    // fft_work_l = (dsp_comp*)heap_caps_calloc(DSP_FFT_IN_N, sizeof(dsp_comp), MALLOC_CAP_32BIT);
-    ERR_IF_NULL_RESET(fft_work_l);
-    // fft_res_r = (float*)heap_caps_calloc(DSP_FFT_RES_N, sizeof(float), MALLOC_CAP_32BIT);
-    ERR_IF_NULL_RESET(fft_res_r);
-    // fft_res_l = (float*)heap_caps_calloc(DSP_FFT_RES_N, sizeof(float), MALLOC_CAP_32BIT);
-    ERR_IF_NULL_RESET(fft_res_l);
-    // ringbuf = (uint8_t*)heap_caps_calloc(DSP_FFT_BUF_N, 1, MALLOC_CAP_32BIT);
-    ERR_IF_NULL_RESET(ringbuf);
-    ESP_LOGI(TAG, "init OK");
+    ESP_LOGI(TAG, "fft buf create...");
+    if(!fft_work_r) fft_work_r = (dsp_comp*)heap_caps_calloc(DSP_FFT_IN_N, sizeof(dsp_comp), MALLOC_CAP_32BIT);
+    ERR_IF_NULL_RETURN_VAL(fft_work_r, false);
+    if(!fft_work_l) fft_work_l = (dsp_comp*)heap_caps_calloc(DSP_FFT_IN_N, sizeof(dsp_comp), MALLOC_CAP_32BIT);
+    ERR_IF_NULL_RETURN_VAL(fft_work_l, false);
+    if(!fft_res_r) fft_res_r = (float*)heap_caps_calloc(DSP_FFT_RES_N, sizeof(float), MALLOC_CAP_32BIT);
+    ERR_IF_NULL_RETURN_VAL(fft_res_r, false);
+    if(!fft_res_l) fft_res_l = (float*)heap_caps_calloc(DSP_FFT_RES_N, sizeof(float), MALLOC_CAP_32BIT);
+    ERR_IF_NULL_RETURN_VAL(fft_res_l, false);
+    if(!ringbuf) ringbuf = (uint8_t*)heap_caps_calloc(DSP_FFT_BUF_N, 1, MALLOC_CAP_32BIT);
+    ERR_IF_NULL_RETURN_VAL(ringbuf, false);
+    ESP_LOGI(TAG, "fft buf create OK");
+    return true;
+}
+
+void dsp_fft_buf_del()
+{
+    ESP_LOGI(TAG, "fft buf delete");
+    free(fft_work_r);
+    fft_work_r = NULL;
+    free(fft_work_l);
+    fft_work_l = NULL;
+    free(fft_res_r);
+    fft_res_r = NULL;
+    free(fft_res_l);
+    fft_res_r = NULL;
+    free(ringbuf);
+    ringbuf = NULL;
 }
 
 void dsp_fft_do()

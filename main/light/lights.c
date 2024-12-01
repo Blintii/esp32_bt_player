@@ -235,41 +235,55 @@ static void lights_render_shader_fft(lights_zone *zone)
     float fft_val;
     float corr;
 
-    if(cfg->mirror) buf += frame_buf->data_size - 3;
-
-    for(size_t px_i = 0; px_i < frame_buf->pixel_n; px_i++)
+    if(fft_res)
     {
-        rms = 0;
+        if(cfg->mirror) buf += frame_buf->data_size - 3;
 
-        for(size_t fft_i = band->fft_min; fft_i < band->fft_max; fft_i++)
+        for(size_t px_i = 0; px_i < frame_buf->pixel_n; px_i++)
         {
-            fft_val = fft_res[fft_i];
-            /* apply higher frequency usually lower values correction
-             * correction mul range [1..100] */
-            corr = (fft_i * 99.0f);
-            corr /= (float)DSP_FFT_RES_N - 1.0f;
-            fft_val *= 1.0f + corr;
-            rms += powf(fft_val, 2.0f);
+            rms = 0;
+
+            for(size_t fft_i = band->fft_min; fft_i < band->fft_max; fft_i++)
+            {
+                fft_val = fft_res[fft_i];
+                /* apply higher frequency usually lower values correction
+                * correction mul range [1..100] */
+                corr = (fft_i * 99.0f);
+                corr /= (float)DSP_FFT_RES_N - 1.0f;
+                fft_val *= 1.0f + corr;
+                rms += powf(fft_val, 2.0f);
+            }
+
+            rms = sqrtf(rms / (float)band->fft_width);
+            /* apply LED brightness rough gamma correction */
+            rms *= rms;
+            mod = *color;
+            mod.lum *= rms * cfg->intensity;
+
+            if(mod.lum > color->lum) mod.lum = color->lum;
+
+            rgb = color_hsl_to_rgb(mod);
+            buf[offset.i_r] = rgb.r;
+            buf[offset.i_g] = rgb.g;
+            buf[offset.i_b] = rgb.b;
+
+            if(cfg->mirror) buf -= 3;
+            else buf += 3;
+
+            color++;
+            band++;
+        }
+    }
+    else
+    {
+        for(size_t px_i = 0; px_i < frame_buf->pixel_n; px_i++)
+        {
+            buf[offset.i_r] = 0;
+            buf[offset.i_g] = 0;
+            buf[offset.i_b] = 0;
+            buf += 3;
         }
 
-        rms = sqrtf(rms / (float)band->fft_width);
-        /* apply LED brightness rough gamma correction */
-        rms *= rms;
-        mod = *color;
-        mod.lum *= rms * cfg->intensity;
-
-        if(mod.lum > color->lum) mod.lum = color->lum;
-
-        rgb = color_hsl_to_rgb(mod);
-        buf[offset.i_r] = rgb.r;
-        buf[offset.i_g] = rgb.g;
-        buf[offset.i_b] = rgb.b;
-
-        if(cfg->mirror) buf -= 3;
-        else buf += 3;
-
-        color++;
-        band++;
     }
 
     zone->mled->need_update = true;

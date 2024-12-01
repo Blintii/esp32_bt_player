@@ -30,7 +30,8 @@ extern const dsp_comp twiddle_lut[DSP_FFT_RES_N];
 extern const uint16_t rev_bits_lut[DSP_FFT_IN_N];
 
 
-void dsp_init();
+bool dsp_fft_buf_create();
+void dsp_fft_buf_del();
 void dsp_fft_do();
 void dsp_fft_finalize();
 void dsp_work_buf_init();
