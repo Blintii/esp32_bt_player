@@ -394,23 +394,34 @@ static void tasks_audio_player()
 
         if(audio_state >= AUDIO_STATE_PLAY)
         {
-            size_t item_size = 0;
-            void *data = xRingbufferReceiveUpTo(audio_stream_ringbuf, &item_size, 0, AUDIO_BUF_RECEIVE_SIZE);
+            size_t item_size;
+            void *data;
+            size_t flush_cnt = 0;
+            bool more_data_left = true;
 
-            if(item_size > 0)
+            do
             {
-                ach_player_data(data, item_size);
-                vRingbufferReturnItem(audio_stream_ringbuf, data);
-                /* receive again to avoid split item causing buffer too fast fulling */
                 item_size = 0;
                 data = xRingbufferReceiveUpTo(audio_stream_ringbuf, &item_size, 0, AUDIO_BUF_RECEIVE_SIZE);
 
-                if(item_size > 0)
+                if(item_size)
                 {
                     ach_player_data(data, item_size);
                     vRingbufferReturnItem(audio_stream_ringbuf, data);
                 }
+                else
+                {
+                    more_data_left = false;
+                    break;
+                }
 
+                if(flush_cnt < AUDIO_BUF_MAX_FLUSH_N) flush_cnt++;
+                else break;
+            }
+            while(item_size);
+
+            if(more_data_left)
+            {
                 if(audio_state == AUDIO_STATE_DROP)
                 {
                     vRingbufferGetInfo(audio_stream_ringbuf, NULL, NULL, NULL, NULL, &item_size);
@@ -610,26 +621,6 @@ static void tasks_lights()
     lights_set_strip_size(0, 150);
     lights_set_strip_size(1, 150);
     ESP_LOGI(TAG, "strips inited");
-    size_t test_px = 0;
-
-    while(1)
-    {
-        for(uint8_t i = 0; i < MLED_STRIP_N; i++)
-        {
-            if(mled_channels[i].pixels.data)
-            {
-                mled_channels[i].pixels.data[test_px*3] = 11;
-                mled_update(&mled_channels[i]);
-            }
-            else ESP_LOGE(TAGE, "dik a cseléd %d", i);
-        }
-
-        if(test_px < 149) test_px++;
-        else test_px = 0;
-
-        vTaskDelay(pdMS_TO_TICKS(500));
-    }
-
     mled_rgb_order colors = {.i_r = 1, .i_g = 0, .i_b = 2};
     mled_channels[0].rgb_order = colors;
     mled_channels[1].rgb_order = colors;
@@ -697,18 +688,15 @@ static void tasks_lights()
     //     lights_shader_init_fft(zone);
     //     shader->need_render = true;
     // }
-    TickType_t lastWakeTime;
     size_t item_n;
     mled_strip *strip;
-    float step;
+    const float step = 40.0f / (float)AUDIO_BUF_LEN;
     float max;
     uint8_t *px_buf;
 
     ESP_LOGI(TAG, "lights enter infinite loop");
     while(1)
     {
-        lastWakeTime = xTaskGetTickCount();
-
         // if(pdTRUE == xSemaphoreTake(dsp_out_semaphore, portMAX_DELAY))
         // {
         //     lights_main();
@@ -720,33 +708,48 @@ static void tasks_lights()
 
         if(audio_stream_ringbuf) item_n = AUDIO_BUF_LEN - xRingbufferGetCurFreeSize(audio_stream_ringbuf);
 
-        for(uint8_t i = 0; i < MLED_STRIP_N; i++)
+        for(uint8_t strip_index = 0; strip_index < MLED_STRIP_N; strip_index++)
         {
-            strip = &mled_channels[i];
-            step = (float)(strip->pixels.pixel_n - 100) / (float)AUDIO_BUF_LEN;
+            strip = &mled_channels[strip_index];
             max = step * (float)item_n;
-            px_buf = strip->pixels.data;
-            px_buf += 100*3;
+            px_buf = strip->pixels.data + strip->pixels.data_size - 3;
 
-            for(size_t i = 0; i < strip->pixels.pixel_n; i++)
+            for(size_t i = 0; i < 40; i++)
             {
+                if(strip->pixels.data_size < (px_buf + 3 - strip->pixels.data))
+                {
+                    ESP_LOGE(TAGE, "gyászoslelkű teeeee");
+                    vTaskDelay(pdMS_TO_TICKS(5000));
+                    break;
+                }
+
                 if(i < max)
                 {
                     px_buf[colors.i_r] = 150;
-                    px_buf[colors.i_g] = 20;
+
+                    if(strip_index)
+                    {
+                        px_buf[colors.i_g] = 20;
+                        px_buf[colors.i_b] = 0;
+                    }
+                    else
+                    {
+                        px_buf[colors.i_g] = 0;
+                        px_buf[colors.i_b] = 20;
+                    }
                 }
                 else
                 {
-                    px_buf[colors.i_r] = 1;
+                    px_buf[colors.i_r] = 4;
                     px_buf[colors.i_g] = 0;
+                    px_buf[colors.i_b] = 0;
                 }
 
-                px_buf += 3;
+                px_buf -= 3;
             }
-        }
 
-        mled_update(strip);
-        xTaskDelayUntil(&lastWakeTime, TASKS_LIGHTS_MIN_TIME);
+            mled_update(strip);
+        }
     }
 }
 

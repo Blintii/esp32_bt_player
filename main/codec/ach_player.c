@@ -60,7 +60,7 @@ void ach_player_init(uint32_t *total_dma_buf_size)
 void ach_player_data(const void *src, size_t size)
 {
     size_t done = 0;
-    esp_err_t err = i2s_channel_write(tx_chan, src, size, &done, 20);
+    esp_err_t err = i2s_channel_write(tx_chan, src, size, &done, 30);
 
     if((ESP_OK != err) || (size != done))
     {

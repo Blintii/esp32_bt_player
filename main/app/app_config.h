@@ -40,16 +40,16 @@
 /* I2S DMA buffer number
  *  1: laggy, dropping sound
  *  increasing value getting faster I2S channel writing */
-#define I2S_DMA_BUF_N       10
+#define I2S_DMA_BUF_N       6
 /* I2S frame size in one DMA buffer
  *  it should be the multiple of audio sample byte length */
-#define I2S_DMA_BUF_SIZE    (120 * AUDIO_SAMPLE_BYTE_LEN)
+#define I2S_DMA_BUF_SIZE    (400 * AUDIO_SAMPLE_BYTE_LEN)
 
 /* the length of buffer between
  * Bluetooth stack and I2S DMA channel memory
  *  it should be the multiple of audio packet size
  *  audio packet size: sample size * channel number */
-#define AUDIO_BUF_LEN       (3600 * (AUDIO_SAMPLE_BYTE_LEN * AUDIO_CHANNEL_N))
+#define AUDIO_BUF_LEN       (3200 * (AUDIO_SAMPLE_BYTE_LEN * AUDIO_CHANNEL_N))
 /*
  * the trigger level when started writing the buffered
  * audio packets to I2S DMA memory buffer
@@ -62,9 +62,13 @@
  *  case windows |  640 | 1280 | 1920 | 2560 | 3200 | 3840
  *  case android | 1024 | 2048 | 3072 | 4096 | 5120 | 6144
  */
-#define AUDIO_BUF_TRIGGER_LEVEL (1100 * (AUDIO_SAMPLE_BYTE_LEN * AUDIO_CHANNEL_N))
-/* too large value increase packet dropping */
-#define AUDIO_BUF_RECEIVE_SIZE (644 * (AUDIO_SAMPLE_BYTE_LEN * AUDIO_CHANNEL_N))
+#define AUDIO_BUF_TRIGGER_LEVEL (1000 * (AUDIO_SAMPLE_BYTE_LEN * AUDIO_CHANNEL_N))
+/* this number control how many data is send once for the I2S from the buffered audio data
+ * too large value increase packet dropping but too small value not enough
+ * while next audio data sent to I2S */
+#define AUDIO_BUF_RECEIVE_SIZE (480 * (AUDIO_SAMPLE_BYTE_LEN * AUDIO_CHANNEL_N))
+/* the number how many time sending data to I2S while blocking */
+#define AUDIO_BUF_MAX_FLUSH_N 30
 
 
 #endif /* __APP_CONFIG_H__ */

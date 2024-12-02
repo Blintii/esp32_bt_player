@@ -21,11 +21,11 @@ static const rmt_bytes_encoder_config_t ws281x_encoder_cfg = {
         .level0 = 1,
         .duration0 = MLED_NS_TO_DURATION(260), // T0H
         .level1 = 0,
-        .duration1 = MLED_NS_TO_DURATION(650), // T0L
+        .duration1 = MLED_NS_TO_DURATION(660), // T0L
     },
     .bit1 = { // 1 code, if bit is not set
         .level0 = 1,
-        .duration0 = MLED_NS_TO_DURATION(650), // T1H
+        .duration0 = MLED_NS_TO_DURATION(660), // T1H
         .level1 = 0,
         .duration1 = MLED_NS_TO_DURATION(260), // T1L
     },
@@ -33,7 +33,7 @@ static const rmt_bytes_encoder_config_t ws281x_encoder_cfg = {
 };
 static const rmt_symbol_word_t ws281x_reset_code = {
     .level0 = 0,
-    .duration0 = MLED_US_TO_DURATION(320), // reset time in WS281x need >280µs
+    .duration0 = MLED_US_TO_DURATION(300), // reset time in WS281x need >280µs
     .level1 = 0,
     .duration1 = 1 // the zero duration used only internally as TX EOF flag by RMT
 };

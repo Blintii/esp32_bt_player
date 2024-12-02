@@ -66,9 +66,10 @@ void mled_update(mled_strip *strip)
         .loop_count = 0,
         .flags = {
             .eot_level = 0,
-            .queue_nonblocking = 1
+            .queue_nonblocking = 0
         }
     };
+
     ERR_CHECK(rmt_transmit(strip->tx_channel, &strip->base, pixels->data, pixels->data_size, &tx_config));
 }
 

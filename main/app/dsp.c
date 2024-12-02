@@ -31,15 +31,15 @@ static void normalize_output(dsp_comp* in, float* out);
 bool dsp_fft_buf_create()
 {
     ESP_LOGI(TAG, "fft buf create...");
-    if(!fft_work_r) fft_work_r = (dsp_comp*)heap_caps_calloc(DSP_FFT_IN_N, sizeof(dsp_comp), MALLOC_CAP_32BIT);
+    if(!fft_work_r) fft_work_r = (dsp_comp*)heap_caps_calloc(DSP_FFT_IN_N, sizeof(dsp_comp), MALLOC_CAP_DEFAULT);
     ERR_IF_NULL_RETURN_VAL(fft_work_r, false);
-    if(!fft_work_l) fft_work_l = (dsp_comp*)heap_caps_calloc(DSP_FFT_IN_N, sizeof(dsp_comp), MALLOC_CAP_32BIT);
+    if(!fft_work_l) fft_work_l = (dsp_comp*)heap_caps_calloc(DSP_FFT_IN_N, sizeof(dsp_comp), MALLOC_CAP_DEFAULT);
     ERR_IF_NULL_RETURN_VAL(fft_work_l, false);
-    if(!fft_res_r) fft_res_r = (float*)heap_caps_calloc(DSP_FFT_RES_N, sizeof(float), MALLOC_CAP_32BIT);
+    if(!fft_res_r) fft_res_r = (float*)heap_caps_calloc(DSP_FFT_RES_N, sizeof(float), MALLOC_CAP_DEFAULT);
     ERR_IF_NULL_RETURN_VAL(fft_res_r, false);
-    if(!fft_res_l) fft_res_l = (float*)heap_caps_calloc(DSP_FFT_RES_N, sizeof(float), MALLOC_CAP_32BIT);
+    if(!fft_res_l) fft_res_l = (float*)heap_caps_calloc(DSP_FFT_RES_N, sizeof(float), MALLOC_CAP_DEFAULT);
     ERR_IF_NULL_RETURN_VAL(fft_res_l, false);
-    if(!ringbuf) ringbuf = (uint8_t*)heap_caps_calloc(DSP_FFT_BUF_N, 1, MALLOC_CAP_32BIT);
+    if(!ringbuf) ringbuf = (uint8_t*)heap_caps_calloc(DSP_FFT_BUF_N, 1, MALLOC_CAP_DEFAULT);
     ERR_IF_NULL_RETURN_VAL(ringbuf, false);
     ESP_LOGI(TAG, "fft buf create OK");
     return true;
