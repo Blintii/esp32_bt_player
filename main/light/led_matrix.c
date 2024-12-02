@@ -1,5 +1,4 @@
 
-#include "string.h"
 #include "freertos/FreeRTOS.h"
 #include "driver/rmt_tx.h"
 #include "esp_clk_tree.h"
@@ -53,9 +52,8 @@ void mled_set_size(mled_strip *strip, size_t pixel_n)
         pixels->data_size = 0;
     }
 
-    pixels->data = malloc(mem_size);
-    ERR_IF_NULL_RESET(pixels->data);
-    memset(pixels->data, 0, mem_size);
+    pixels->data = (uint8_t*)calloc(1, mem_size);
+    ERR_IF_NULL_RETURN(pixels->data);
     pixels->data_size = mem_size;
     pixels->pixel_n = pixel_n;
     ESP_LOGI(TAG, "set pixels buf size %d OK", pixel_n);

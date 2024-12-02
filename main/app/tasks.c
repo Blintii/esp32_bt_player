@@ -607,11 +607,33 @@ static void tasks_dsp()
 static void tasks_lights()
 {
     ESP_LOGI(TAG, "lights started");
-    vTaskDelay(pdMS_TO_TICKS(5000));
-    lights_set_strip_size(0, 50);
-    lights_set_strip_size(1, 266);
+    lights_set_strip_size(0, 150);
+    lights_set_strip_size(1, 150);
+    ESP_LOGI(TAG, "strips inited");
+    size_t test_px = 0;
+
+    while(1)
+    {
+        for(uint8_t i = 0; i < MLED_STRIP_N; i++)
+        {
+            if(mled_channels[i].pixels.data)
+            {
+                mled_channels[i].pixels.data[test_px*3] = 11;
+                mled_update(&mled_channels[i]);
+            }
+            else ESP_LOGE(TAGE, "dik a cseléd %d", i);
+        }
+
+        if(test_px < 149) test_px++;
+        else test_px = 0;
+
+        vTaskDelay(pdMS_TO_TICKS(500));
+    }
+
+    mled_rgb_order colors = {.i_r = 1, .i_g = 0, .i_b = 2};
+    mled_channels[0].rgb_order = colors;
+    mled_channels[1].rgb_order = colors;
     // uint8_t i = 0;
-    mled_rgb_order colors = {.i_r = 0, .i_g = 1, .i_b = 2};
     // lights_shader *shader;
     // lights_zone *zone = lights_set_zone(i++, 0, 0, 22, colors);
     // {
@@ -677,8 +699,8 @@ static void tasks_lights()
     // }
     TickType_t lastWakeTime;
     size_t item_n;
-    mled_strip *strip = &mled_channels[0];
-    float step = (float)strip->pixels.pixel_n / (float)AUDIO_BUF_LEN;
+    mled_strip *strip;
+    float step;
     float max;
     uint8_t *px_buf;
 
@@ -698,23 +720,29 @@ static void tasks_lights()
 
         if(audio_stream_ringbuf) item_n = AUDIO_BUF_LEN - xRingbufferGetCurFreeSize(audio_stream_ringbuf);
 
-        max = step * (float)item_n;
-        px_buf = strip->pixels.data;
-
-        for(size_t i = 0; i < strip->pixels.pixel_n; i++)
+        for(uint8_t i = 0; i < MLED_STRIP_N; i++)
         {
-            if(i < max)
-            {
-                px_buf[colors.i_r] = 150;
-                px_buf[colors.i_g] = 20;
-            }
-            else
-            {
-                px_buf[colors.i_r] = 1;
-                px_buf[colors.i_g] = 0;
-            }
+            strip = &mled_channels[i];
+            step = (float)(strip->pixels.pixel_n - 100) / (float)AUDIO_BUF_LEN;
+            max = step * (float)item_n;
+            px_buf = strip->pixels.data;
+            px_buf += 100*3;
 
-            px_buf += 3;
+            for(size_t i = 0; i < strip->pixels.pixel_n; i++)
+            {
+                if(i < max)
+                {
+                    px_buf[colors.i_r] = 150;
+                    px_buf[colors.i_g] = 20;
+                }
+                else
+                {
+                    px_buf[colors.i_r] = 1;
+                    px_buf[colors.i_g] = 0;
+                }
+
+                px_buf += 3;
+            }
         }
 
         mled_update(strip);

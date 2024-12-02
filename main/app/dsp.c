@@ -48,15 +48,15 @@ bool dsp_fft_buf_create()
 void dsp_fft_buf_del()
 {
     ESP_LOGI(TAG, "fft buf delete");
-    free(fft_work_r);
+    heap_caps_free(fft_work_r);
     fft_work_r = NULL;
-    free(fft_work_l);
+    heap_caps_free(fft_work_l);
     fft_work_l = NULL;
-    free(fft_res_r);
+    heap_caps_free(fft_res_r);
     fft_res_r = NULL;
-    free(fft_res_l);
-    fft_res_r = NULL;
-    free(ringbuf);
+    heap_caps_free(fft_res_l);
+    fft_res_l = NULL;
+    heap_caps_free(ringbuf);
     ringbuf = NULL;
 }
 

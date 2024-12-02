@@ -19,21 +19,21 @@ static const char *TAGE = "WS281x";
 static const rmt_bytes_encoder_config_t ws281x_encoder_cfg = {
     .bit0 = { // 0 code, if bit is set
         .level0 = 1,
-        .duration0 = MLED_NS_TO_DURATION(240), // T0H
+        .duration0 = MLED_NS_TO_DURATION(260), // T0H
         .level1 = 0,
-        .duration1 = MLED_NS_TO_DURATION(600), // T0L
+        .duration1 = MLED_NS_TO_DURATION(650), // T0L
     },
     .bit1 = { // 1 code, if bit is not set
         .level0 = 1,
-        .duration0 = MLED_NS_TO_DURATION(600), // T1H
+        .duration0 = MLED_NS_TO_DURATION(650), // T1H
         .level1 = 0,
-        .duration1 = MLED_NS_TO_DURATION(240), // T1L
+        .duration1 = MLED_NS_TO_DURATION(260), // T1L
     },
     .flags.msb_first = 1 // WS281x require high bit data is first: 7 -> 0
 };
 static const rmt_symbol_word_t ws281x_reset_code = {
     .level0 = 0,
-    .duration0 = MLED_US_TO_DURATION(300), // reset time in WS281x need >280µs
+    .duration0 = MLED_US_TO_DURATION(320), // reset time in WS281x need >280µs
     .level1 = 0,
     .duration1 = 1 // the zero duration used only internally as TX EOF flag by RMT
 };
