@@ -19,9 +19,10 @@
 
 /* onboard blue LED */
 #define PIN_LED_BLUE        GPIO_NUM_2 // VDD3P3_RTC
-/* used LED strip pins */
-#define PIN_LED_STRIP_0     GPIO_NUM_12 // VDD3P3_RTC
-#define PIN_LED_STRIP_1     GPIO_NUM_14 // VDD3P3_RTC
+/* used matrix LED strip pins */
+#define PIN_MLED_STRIP_0    GPIO_NUM_12 // VDD3P3_RTC
+#define PIN_MLED_STRIP_1    GPIO_NUM_14 // VDD3P3_RTC
+#define MLED_STRIP_N        2
 
 /* used I2C peripheral number */
 #define I2C_PERIPH_NUM      I2C_NUM_0
@@ -64,8 +65,6 @@
 #define AUDIO_BUF_TRIGGER_LEVEL (1100 * (AUDIO_SAMPLE_BYTE_LEN * AUDIO_CHANNEL_N))
 /* too large value increase packet dropping */
 #define AUDIO_BUF_RECEIVE_SIZE (644 * (AUDIO_SAMPLE_BYTE_LEN * AUDIO_CHANNEL_N))
-
-#define LIGHTS_ZONES_SIZE   20
 
 
 #endif /* __APP_CONFIG_H__ */

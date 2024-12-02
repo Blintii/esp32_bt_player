@@ -20,7 +20,7 @@ typedef struct {
     union {
         struct {
             uint8_t *buf;
-            lights_rgb_order offset;
+            mled_rgb_order offset;
         } shader_fade;
         struct {
             color_hsl *lut_pos;
@@ -31,86 +31,81 @@ typedef struct {
 
 static const char *TAG = LOG_COLOR("95") "LIGHT" LOG_RESET_COLOR;
 static const char *TAGE = LOG_COLOR("95") "LIGHT" LOG_COLOR_E;
-static lights_zone zones[LIGHTS_ZONES_SIZE];
+lights_zone_list lights_zones[MLED_STRIP_N] = {0};
 
 
-static void lights_render_shader_color(lights_zone *zone);
-static void lights_render_shader_repeat(lights_zone *zone);
-static void lights_render_shader_fade(lights_zone *zone);
-static void lights_render_shader_fft(lights_zone *zone);
+static void lights_render_shader_color(lights_zone_chain *zone, bool *update_mled);
+static void lights_render_shader_repeat(lights_zone_chain *zone, bool *update_mled);
+static void lights_render_shader_fade(lights_zone_chain *zone, bool *update_mled);
+static void lights_render_shader_fft(lights_zone_chain *zone, bool *update_mled);
 static void fadeing(fading_ctx arg);
 static void fft_fadeing(lights_shader_cfg_fft *cfg, size_t pixel_n);
-static void fft_band_map(lights_zone *zone);
+static void fft_band_map(lights_zone_chain *zone);
 
 
 void lights_main()
 {
     mled_strip *strip;
-    lights_zone *zone;
+    lights_zone_chain *zone;
+    bool update_mled;
 
-    for(size_t zone_index = 0; zone_index < LIGHTS_ZONES_SIZE; zone_index++)
-    {
-        zone = &zones[zone_index];
-
-        if(zone->mled && zone->shader.need_render)
-        {
-            zone->shader.need_render = false;
-
-            switch(zone->shader.type)
-            {
-                case SHADER_SINGLE: lights_render_shader_color(zone); break;
-                case SHADER_REPEAT: lights_render_shader_repeat(zone); break;
-                case SHADER_FADE: lights_render_shader_fade(zone); break;
-                case SHADER_FFT: lights_render_shader_fft(zone); break;
-                default: PRINT_TRACE(); break;
-            }
-        }
-    }
-
-    for(size_t strip_index = 0; strip_index < MLED_CHANNEL_N; strip_index++)
+    for(uint8_t strip_index = 0; strip_index < MLED_STRIP_N; strip_index++)
     {
         strip = &mled_channels[strip_index];
+        zone = lights_zones[strip_index].first;
+        update_mled = false;
 
-        if(strip->need_update)
+        while(zone)
         {
-            strip->need_update = false;
-            mled_update(strip);
+            if(zone->shader.need_render)
+            {
+                zone->shader.need_render = false;
+
+                switch(zone->shader.type)
+                {
+                    case SHADER_SINGLE: lights_render_shader_color(zone, &update_mled); break;
+                    case SHADER_REPEAT: lights_render_shader_repeat(zone, &update_mled); break;
+                    case SHADER_FADE: lights_render_shader_fade(zone, &update_mled); break;
+                    case SHADER_FFT: lights_render_shader_fft(zone, &update_mled); break;
+                    default: PRINT_TRACE(); break;
+                }
+            }
+
+            zone = zone->next;
         }
+
+        if(update_mled) mled_update(strip);
     }
 }
 
 void lights_set_strip_size(size_t strip_index, size_t pixel_n)
 {
-    ERR_CHECK_RESET(MLED_CHANNEL_N <= strip_index);
+    ERR_CHECK_RETURN(MLED_STRIP_N <= strip_index);
     mled_strip *strip = &mled_channels[strip_index];
-
-    if(strip->pixels.pixel_n > pixel_n)
-    {
-        for(size_t i = 0; i < LIGHTS_ZONES_SIZE; i++)
-        {
-            ERR_CHECK_RESET(zones[i].mled == strip);
-        }
-    }
-
+    ERR_CHECK_RETURN(pixel_n < lights_zones[strip_index].pixel_used_pos);
     mled_set_size(strip, pixel_n);
 }
 
-lights_zone *lights_set_zone(size_t zone_index, size_t strip_index, size_t pixel_offset, size_t pixel_n, lights_rgb_order colors)
+void lights_new_zone(size_t strip_index, size_t pixel_n)
 {
-    ESP_LOGI(TAG, "set zone %d, in strip %d", zone_index, strip_index);
-    ERR_CHECK_RESET(LIGHTS_ZONES_SIZE <= zone_index);
-    ERR_CHECK_RESET(MLED_CHANNEL_N <= strip_index);
-    lights_zone *zone = &zones[zone_index];
+    ESP_LOGI(TAG, "new %d size zone to strip %d", pixel_n, strip_index);
+    ERR_CHECK_RETURN(MLED_STRIP_N <= strip_index);
     mled_strip *strip = &mled_channels[strip_index];
+    lights_zone_list *list = &lights_zones[strip_index];
     mled_pixels *pixels = &strip->pixels;
-    ERR_CHECK_RESET(!pixels->data);
-    ERR_CHECK_RESET(!pixels->pixel_n);
-    ERR_CHECK_RESET(pixels->pixel_n < (pixel_offset + pixel_n));
-    zone->frame_buf.data = &pixels->data[pixel_offset * 3];
+    ERR_CHECK_RETURN(!pixels->data);
+    ERR_CHECK_RETURN(!pixels->pixel_n);
+    ERR_CHECK_RETURN(pixel_n > (pixels->pixel_n - list->pixel_used_pos));
+    lights_zone_chain *zone = calloc(1, sizeof(lights_zone_chain));
+    ERR_IF_NULL_RETURN(zone);
+    zone->frame_buf.data = pixels->data;
     zone->frame_buf.pixel_n = pixel_n;
     zone->frame_buf.data_size = pixel_n * 3;
     zone->mled = strip;
-    zone->colors = colors;
+    list->last->next = zone;
+    list->last = zone;
+    list->zone_n++;
+    list->pixel_used_pos += pixel_n;
 
     /* set default shader */
     lights_shader *shader = &zone->shader;
@@ -124,10 +119,9 @@ lights_zone *lights_set_zone(size_t zone_index, size_t strip_index, size_t pixel
     };
     shader->cfg.shader_single = cfg;
     shader->need_render = true;
-    return zone;
 }
 
-void lights_shader_init_fft(lights_zone *zone)
+void lights_shader_init_fft(lights_zone_chain *zone)
 {
     mled_pixels *frame_buf = &zone->frame_buf;
     lights_shader_cfg_fft *cfg = &zone->shader.cfg.shader_fft;
@@ -141,12 +135,12 @@ void lights_shader_init_fft(lights_zone *zone)
     fft_band_map(zone);
 }
 
-static void lights_render_shader_color(lights_zone *zone)
+static void lights_render_shader_color(lights_zone_chain *zone, bool *update_mled)
 {
     mled_pixels *frame_buf = &zone->frame_buf;
     uint8_t *buf = frame_buf->data;
     ERR_IF_NULL_RETURN(buf);
-    lights_rgb_order offset = zone->colors;
+    mled_rgb_order offset = zone->mled->rgb_order;
     lights_shader_cfg_single *cfg = &zone->shader.cfg.shader_single;
     color_rgb color = cfg->color;
 
@@ -158,15 +152,15 @@ static void lights_render_shader_color(lights_zone *zone)
         buf += 3;
     }
 
-    zone->mled->need_update = true;
+    *update_mled = true;
 }
 
-static void lights_render_shader_repeat(lights_zone *zone)
+static void lights_render_shader_repeat(lights_zone_chain *zone, bool *update_mled)
 {
     mled_pixels *frame_buf = &zone->frame_buf;
     uint8_t *buf = frame_buf->data;
     ERR_IF_NULL_RETURN(buf);
-    lights_rgb_order offset = zone->colors;
+    mled_rgb_order offset = zone->mled->rgb_order;
     lights_shader_cfg_repeat *cfg = &zone->shader.cfg.shader_repeat;
     color_rgb *color = cfg->colors;
     ERR_IF_NULL_RETURN(color);
@@ -187,15 +181,15 @@ static void lights_render_shader_repeat(lights_zone *zone)
         else color++;
     }
 
-    zone->mled->need_update = true;
+    *update_mled = true;
 }
 
-static void lights_render_shader_fade(lights_zone *zone)
+static void lights_render_shader_fade(lights_zone_chain *zone, bool *update_mled)
 {
     mled_pixels *frame_buf = &zone->frame_buf;
     uint8_t *buf = frame_buf->data;
     ERR_IF_NULL_RETURN(buf);
-    lights_rgb_order offset = zone->colors;
+    mled_rgb_order offset = zone->mled->rgb_order;
     lights_shader_cfg_fade *cfg = &zone->shader.cfg.shader_fade;
     color_hsl *color = cfg->colors;
     ERR_IF_NULL_RETURN(color);
@@ -212,15 +206,15 @@ static void lights_render_shader_fade(lights_zone *zone)
         }
     };
     fadeing(arg);
-    zone->mled->need_update = true;
+    *update_mled = true;
 }
 
-static void lights_render_shader_fft(lights_zone *zone)
+static void lights_render_shader_fft(lights_zone_chain *zone, bool *update_mled)
 {
     mled_pixels *frame_buf = &zone->frame_buf;
     uint8_t *buf = frame_buf->data;
     ERR_IF_NULL_RETURN(buf);
-    lights_rgb_order offset = zone->colors;
+    mled_rgb_order offset = zone->mled->rgb_order;
     lights_shader_cfg_fft *cfg = &zone->shader.cfg.shader_fft;
     ERR_IF_NULL_RETURN(cfg->bands);
     ERR_IF_NULL_RETURN(cfg->pixel_lut);
@@ -284,7 +278,7 @@ static void lights_render_shader_fft(lights_zone *zone)
 
     }
 
-    zone->mled->need_update = true;
+    *update_mled = true;
     /* to keep fft rendering live */
     zone->shader.need_render = true;
 }
@@ -339,7 +333,7 @@ static void fadeing(fading_ctx arg)
             {
                 case FADING_TYPE_SHADER_FADE: {
                     color_rgb rgb = color_hsl_to_rgb(work);
-                    lights_rgb_order offset = arg.ctx.shader_fade.offset;
+                    mled_rgb_order offset = arg.ctx.shader_fade.offset;
                     uint8_t *buf = arg.ctx.shader_fade.buf;
                     buf[offset.i_r] = rgb.r;
                     buf[offset.i_g] = rgb.g;
@@ -383,7 +377,7 @@ static void fft_fadeing(lights_shader_cfg_fft *cfg, size_t pixel_n)
     fadeing(arg);
 }
 
-static void fft_band_map(lights_zone *zone)
+static void fft_band_map(lights_zone_chain *zone)
 {
     lights_shader_cfg_fft *cfg = &zone->shader.cfg.shader_fft;
     lights_shader_cfg_fft_band *bands = cfg->bands;

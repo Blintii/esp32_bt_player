@@ -611,7 +611,7 @@ static void tasks_lights()
     lights_set_strip_size(0, 50);
     lights_set_strip_size(1, 266);
     // uint8_t i = 0;
-    lights_rgb_order colors = {.i_r = 0, .i_g = 1, .i_b = 2};
+    mled_rgb_order colors = {.i_r = 0, .i_g = 1, .i_b = 2};
     // lights_shader *shader;
     // lights_zone *zone = lights_set_zone(i++, 0, 0, 22, colors);
     // {

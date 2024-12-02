@@ -11,8 +11,8 @@
 #include "led_matrix.h"
 
 
-#define RMT_MEM_SIZE (SOC_RMT_GROUPS*SOC_RMT_CHANNELS_PER_GROUP*SOC_RMT_MEM_WORDS_PER_CHANNEL)
-#define RMT_CHANNEL_MEM_SIZE (RMT_MEM_SIZE/MLED_CHANNEL_N)
+#define RMT_MEM_SIZE (SOC_RMT_GROUPS * SOC_RMT_CHANNELS_PER_GROUP * SOC_RMT_MEM_WORDS_PER_CHANNEL)
+#define RMT_CHANNEL_MEM_SIZE (RMT_MEM_SIZE / MLED_STRIP_N)
 /* the mled_strip structure layout allows to the structure can obtained
  * by using the address of the first element of the structure,
  * which we have that is the rmt_encoder_t */
@@ -27,7 +27,7 @@ static esp_err_t mled_encode_del(rmt_encoder_t *encoder);
 
 static const char *TAG = LOG_COLOR("96") "MLED" LOG_RESET_COLOR;
 static const char *TAGE = LOG_COLOR("96") "MLED" LOG_COLOR_E;
-mled_strip mled_channels[MLED_CHANNEL_N] = {0};
+mled_strip mled_channels[MLED_STRIP_N] = {0};
 
 
 void mled_init()
@@ -35,8 +35,8 @@ void mled_init()
     ESP_LOGI(TAG, "init...");
     /* APB can configured with other value, so need check this */
     ERR_CHECK_RESET(MLED_CLOCK_HZ != clk_hal_apb_get_freq_hz());
-    mled_strip_init(0, PIN_LED_STRIP_0);
-    mled_strip_init(1, PIN_LED_STRIP_1);
+    mled_strip_init(0, PIN_MLED_STRIP_0);
+    mled_strip_init(1, PIN_MLED_STRIP_1);
     ESP_LOGI(TAG, "init OK");
 }
 
@@ -76,7 +76,7 @@ void mled_update(mled_strip *strip)
 
 static void mled_strip_init(size_t index, gpio_num_t pin)
 {
-    ERR_CHECK_RESET(MLED_CHANNEL_N <= index);
+    ERR_CHECK_RESET(MLED_STRIP_N <= index);
     mled_strip *strip = &mled_channels[index];
     rmt_tx_channel_config_t tx_chan_config = {
         .clk_src = RMT_CLK_SRC_DEFAULT,
@@ -94,6 +94,7 @@ static void mled_strip_init(size_t index, gpio_num_t pin)
     strip->data_sent = false;
     mled_encode_chain_ws281x(strip);
     ERR_CHECK_RESET(rmt_enable(strip->tx_channel));
+    strip->rgb_order = (mled_rgb_order) {.i_r = 0, .i_g = 1, .i_b = 2};
     ESP_LOGI(TAG, "init strip %d as WS281x OK", index);
 }
 

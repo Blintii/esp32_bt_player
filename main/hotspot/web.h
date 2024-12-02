@@ -25,6 +25,19 @@
 #define HTTPD_MAX_SOCKETS (CONFIG_LWIP_MAX_SOCKETS - 6)
 
 
+typedef enum {
+    WEB_WS_CID_STRIP_CFG,
+    WEB_WS_CID_ZONE_CFG,
+    WEB_WS_CID_SHADER_CFG,
+} web_ws_id_clientbound;
+
+typedef enum {
+    WEB_WS_SID_STRIP_SET,
+    WEB_WS_SID_ZONE_SET,
+    WEB_WS_SID_SHADER_SET,
+} web_ws_id_serverbound;
+
+
 esp_err_t web_start_server();
 esp_err_t web_redirect(httpd_req_t *req, httpd_err_code_t err);
 esp_err_t web_file_content(httpd_req_t *req);

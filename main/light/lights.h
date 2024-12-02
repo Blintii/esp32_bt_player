@@ -12,12 +12,6 @@
 #include "color.h"
 
 
-typedef struct {
-    uint8_t i_r;
-    uint8_t i_g;
-    uint8_t i_b;
-} lights_rgb_order;
-
 typedef enum {
     SHADER_SINGLE,
     SHADER_REPEAT,
@@ -69,16 +63,26 @@ typedef struct {
 
 typedef struct {
     mled_strip *mled;
-    lights_rgb_order colors;
     mled_pixels frame_buf;
     lights_shader shader;
-} lights_zone;
+    void *next;
+} lights_zone_chain;
+
+typedef struct {
+    lights_zone_chain *first;
+    lights_zone_chain *last;
+    size_t zone_n;
+    size_t pixel_used_pos;
+} lights_zone_list;
+
+
+extern lights_zone_list lights_zones[MLED_STRIP_N];
 
 
 void lights_main();
 void lights_set_strip_size(size_t strip_index, size_t pixel_n);
-lights_zone *lights_set_zone(size_t zone_index, size_t strip_index, size_t pixel_offset, size_t pixel_n, lights_rgb_order colors);
-void lights_shader_init_fft(lights_zone *zone);
+void lights_new_zone(size_t strip_index, size_t pixel_n);
+void lights_shader_init_fft(lights_zone_chain *zone);
 
 
 #endif /* __LIGHTS__ */

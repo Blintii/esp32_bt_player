@@ -17,7 +17,7 @@ static const char *TAGE = LOG_COLOR("33") "cfg" LOG_COLOR_E;
 
 static void config_parse_lights(cJSON *cfg);
 static void parse_lights_strips(cJSON *cfg_strips);
-static void parse_lights_zones(cJSON *cfg_zones);
+static void parse_lights_zones(cJSON *cfg_zones, int strip_index);
 
 
 cJSON *storage_load(void)
@@ -114,19 +114,6 @@ static void config_parse_lights(cJSON *cfg)
             else ESP_LOGE(TAGE, "cfg_strips is NOT array");
         }
         else ESP_LOGE(TAGE, "cfg_lights NOT has strips");
-
-        if(cJSON_HasObjectItem(cfg_lights, "zones"))
-        {
-            ESP_LOGI(TAG, "cfg_lights has zones");
-            cJSON *cfg_zones = cJSON_GetObjectItem(cfg_lights, "zones");
-
-            if(cJSON_IsArray(cfg_zones))
-            {
-                parse_lights_zones(cfg_zones);
-            }
-            else ESP_LOGE(TAGE, "cfg_zones is NOT array");
-        }
-        else ESP_LOGE(TAGE, "cfg_lights NOT has zones");
     }
     else ESP_LOGE(TAGE, "cfg NOT has lights");
 }
@@ -138,54 +125,19 @@ static void parse_lights_strips(cJSON *cfg_strips)
 
     for(uint8_t i = 0; i < strip_cnt; i++)
     {
-        if(i < MLED_CHANNEL_N)
+        if(i < MLED_STRIP_N)
         {
             cJSON *cfg_strip_item = cJSON_GetArrayItem(cfg_strips, i);
 
             if(cfg_strip_item)
             {
-                if(cJSON_HasObjectItem(cfg_strip_item, "pixel_n"))
+                if(cJSON_HasObjectItem(cfg_strip_item, "pixel_n")
+                    && cJSON_HasObjectItem(cfg_strip_item, "rgb_order"))
                 {
-                    ESP_LOGI(TAG, "device item %d has pixel_n", i);
+                    ESP_LOGI(TAG, "cfg_strip_item %d has required tag", i);
                     size_t cfg_strip_pixel_n = cJSON_GetObjectItem(cfg_strip_item, "pixel_n")->valueint;
-                    lights_set_strip_size(i, cfg_strip_pixel_n);
-                }
-                else ESP_LOGE(TAGE, "cfg_strip_item %d NOT has pixel_n", i);
-            }
-            else ESP_LOGE(TAGE, "cfg_strip_item %d is NULL", i);
-        }
-        else
-        {
-            ESP_LOGE(TAGE, "config contains more strips than max size %d/%d", strip_cnt, MLED_CHANNEL_N);
-            break;
-        }
-    }
-}
-
-static void parse_lights_zones(cJSON *cfg_zones)
-{
-    uint8_t zone_cnt = cJSON_GetArraySize(cfg_zones);
-    ESP_LOGI(TAG, "cfg_zones is %d size array", zone_cnt);
-
-    for(uint8_t i = 0; i < zone_cnt; i++)
-    {
-        if(i < LIGHTS_ZONES_SIZE)
-        {
-            cJSON *cfg_zone_item = cJSON_GetArrayItem(cfg_zones, i);
-
-            if(cfg_zone_item)
-            {
-                if(cJSON_HasObjectItem(cfg_zone_item, "strip_index")
-                    && cJSON_HasObjectItem(cfg_zone_item, "pixel_offset")
-                    && cJSON_HasObjectItem(cfg_zone_item, "pixel_n")
-                    && cJSON_HasObjectItem(cfg_zone_item, "colors"))
-                {
-                    ESP_LOGI(TAG, "device item %d has all required tag", i);
-                    size_t cfg_zone_strip_index = cJSON_GetObjectItem(cfg_zone_item, "strip_index")->valueint;
-                    size_t cfg_zone_pixel_offset = cJSON_GetObjectItem(cfg_zone_item, "pixel_offset")->valueint;
-                    size_t cfg_zone_pixel_n = cJSON_GetObjectItem(cfg_zone_item, "pixel_n")->valueint;
-                    char *cfg_zone_colors = cJSON_GetObjectItem(cfg_zone_item, "colors")->valuestring;
-                    lights_rgb_order colors;
+                    char *cfg_zone_colors = cJSON_GetObjectItem(cfg_strip_item, "rgb_order")->valuestring;
+                    mled_rgb_order colors = {0};
                     bool valid = true;
                     char *char_p = strchr(cfg_zone_colors, 'R');
 
@@ -213,18 +165,54 @@ static void parse_lights_zones(cJSON *cfg_zones)
 
                     if(valid)
                     {
-                        lights_set_zone(i, cfg_zone_strip_index, cfg_zone_pixel_offset, cfg_zone_pixel_n, colors);
+                        lights_set_strip_size(i, cfg_strip_pixel_n);
                     }
                     else ESP_LOGE(TAGE, "cfg_zone_colors %d not valid", i);
                 }
-                else ESP_LOGE(TAGE, "cfg_zone_item %d NOT has all required tag", i);
+                else ESP_LOGE(TAGE, "cfg_strip_item %d NOT has all required tag", i);
+
+                if(cJSON_HasObjectItem(cfg_strip_item, "zones"))
+                {
+                    ESP_LOGI(TAG, "cfg_lights has zones");
+                    cJSON *cfg_zones = cJSON_GetObjectItem(cfg_strip_item, "zones");
+
+                    if(cJSON_IsArray(cfg_zones))
+                    {
+                        parse_lights_zones(cfg_zones, i);
+                    }
+                    else ESP_LOGE(TAGE, "cfg_zones is NOT array");
+                }
+                else ESP_LOGE(TAGE, "cfg_lights NOT has zones");
             }
-            else ESP_LOGE(TAGE, "cfg_zone_item %d is NULL", i);
+            else ESP_LOGE(TAGE, "cfg_strip_item %d is NULL", i);
         }
         else
         {
-            ESP_LOGE(TAGE, "config contains more zones than max size %d/%d", zone_cnt, LIGHTS_ZONES_SIZE);
+            ESP_LOGE(TAGE, "config contains more strips than max size %d/%d", strip_cnt, MLED_STRIP_N);
             break;
         }
+    }
+}
+
+static void parse_lights_zones(cJSON *cfg_zones, int strip_index)
+{
+    uint8_t zone_cnt = cJSON_GetArraySize(cfg_zones);
+    ESP_LOGI(TAG, "cfg_zones is %d size array", zone_cnt);
+
+    for(uint8_t i = 0; i < zone_cnt; i++)
+    {
+        cJSON *cfg_zone_item = cJSON_GetArrayItem(cfg_zones, i);
+
+        if(cfg_zone_item)
+        {
+            if(cJSON_HasObjectItem(cfg_zone_item, "pixel_n"))
+            {
+                ESP_LOGI(TAG, "device item %d has pixel_n", i);
+                size_t cfg_zone_pixel_n = cJSON_GetObjectItem(cfg_zone_item, "pixel_n")->valueint;
+                lights_new_zone(strip_index, cfg_zone_pixel_n);
+            }
+            else ESP_LOGE(TAGE, "cfg_zone_item %d NOT has all required tag", i);
+        }
+        else ESP_LOGE(TAGE, "cfg_zone_item %d is NULL", i);
     }
 }
