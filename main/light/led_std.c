@@ -58,7 +58,6 @@ void sled_set(led_std_mode mode)
             ERR_BAD_CASE(mode, "%d");
             break;
     }
-    list_tasks_stack_info();
 }
 
 /* 3906 div, 16bit: 1Hz

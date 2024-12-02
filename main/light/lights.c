@@ -86,23 +86,26 @@ void lights_set_strip_size(size_t strip_index, size_t pixel_n)
     mled_set_size(strip, pixel_n);
 }
 
-void lights_new_zone(size_t strip_index, size_t pixel_n)
+lights_zone_chain *lights_new_zone(size_t strip_index, size_t pixel_n)
 {
     ESP_LOGI(TAG, "new %d size zone to strip %d", pixel_n, strip_index);
-    ERR_CHECK_RETURN(MLED_STRIP_N <= strip_index);
+    ERR_CHECK_RETURN_VAL(MLED_STRIP_N <= strip_index, NULL);
     mled_strip *strip = &mled_channels[strip_index];
     lights_zone_list *list = &lights_zones[strip_index];
     mled_pixels *pixels = &strip->pixels;
-    ERR_CHECK_RETURN(!pixels->data);
-    ERR_CHECK_RETURN(!pixels->pixel_n);
-    ERR_CHECK_RETURN(pixel_n > (pixels->pixel_n - list->pixel_used_pos));
+    ERR_CHECK_RETURN_VAL(!pixels->data, NULL);
+    ERR_CHECK_RETURN_VAL(!pixels->pixel_n, NULL);
+    ERR_CHECK_RETURN_VAL(pixel_n > (pixels->pixel_n - list->pixel_used_pos), NULL);
     lights_zone_chain *zone = calloc(1, sizeof(lights_zone_chain));
-    ERR_IF_NULL_RETURN(zone);
-    zone->frame_buf.data = pixels->data;
+    ERR_IF_NULL_RETURN_VAL(zone, NULL);
+    zone->frame_buf.data = &pixels->data[list->pixel_used_pos * 3];
     zone->frame_buf.pixel_n = pixel_n;
     zone->frame_buf.data_size = pixel_n * 3;
     zone->mled = strip;
-    list->last->next = zone;
+
+    if(list->last) list->last->next = zone;
+    else list->first = zone;
+
     list->last = zone;
     list->zone_n++;
     list->pixel_used_pos += pixel_n;
@@ -119,6 +122,7 @@ void lights_new_zone(size_t strip_index, size_t pixel_n)
     };
     shader->cfg.shader_single = cfg;
     shader->need_render = true;
+    return zone;
 }
 
 void lights_shader_init_fft(lights_zone_chain *zone)
@@ -227,10 +231,10 @@ static void lights_render_shader_fft(lights_zone_chain *zone, bool *update_mled)
     float fft_val;
     float corr;
 
+    if(cfg->mirror) buf += frame_buf->data_size - 3;
+
     if(fft_res)
     {
-        if(cfg->mirror) buf += frame_buf->data_size - 3;
-
         for(size_t px_i = 0; px_i < frame_buf->pixel_n; px_i++)
         {
             rms = 0;
@@ -241,7 +245,7 @@ static void lights_render_shader_fft(lights_zone_chain *zone, bool *update_mled)
                 /* apply higher frequency usually lower values correction
                 * correction mul range [1..100] */
                 corr = (fft_i * 99.0f);
-                corr /= (float)DSP_FFT_RES_N - 1.0f;
+                corr /= (float)DSP_FFT_RES_N;
                 fft_val *= 1.0f + corr;
                 rms += powf(fft_val, 2.0f);
             }
@@ -253,6 +257,7 @@ static void lights_render_shader_fft(lights_zone_chain *zone, bool *update_mled)
             mod.lum *= rms * cfg->intensity;
 
             if(mod.lum > color->lum) mod.lum = color->lum;
+            else if(mod.lum < 0) mod.lum = 0;
 
             rgb = color_hsl_to_rgb(mod);
             buf[offset.i_r] = rgb.r;
@@ -270,10 +275,15 @@ static void lights_render_shader_fft(lights_zone_chain *zone, bool *update_mled)
     {
         for(size_t px_i = 0; px_i < frame_buf->pixel_n; px_i++)
         {
-            buf[offset.i_r] = 0;
-            buf[offset.i_g] = 0;
-            buf[offset.i_b] = 0;
-            buf += 3;
+            rgb = color_hsl_to_rgb(*color);
+            buf[offset.i_r] = rgb.r;
+            buf[offset.i_g] = rgb.g;
+            buf[offset.i_b] = rgb.b;
+
+            if(cfg->mirror) buf -= 3;
+            else buf += 3;
+
+            color++;
         }
 
     }
@@ -425,15 +435,14 @@ static void fft_band_map(lights_zone_chain *zone)
         // switch(i%3)
         // {
         //     case 2:
-        //         ESP_LOGI(TAG, "[%d...%d]: %d", bands->fft_min, bands->fft_max, bands->fft_width);
+        //         ESP_LOGI(TAG, "%d [%d...%d]: %d", i, bands->fft_min, bands->fft_max, bands->fft_width);
         //         break;
         //     case 1:
-        //         ESP_LOGI(TAG, LOG_COLOR_W"[%d...%d]: %d", bands->fft_min, bands->fft_max, bands->fft_width);
+        //         ESP_LOGI(TAG, LOG_COLOR_W"%d [%d...%d]: %d", i, bands->fft_min, bands->fft_max, bands->fft_width);
         //         break;
         //     default:
-        //         ESP_LOGI(TAG, LOG_COLOR_I"[%d...%d]: %d", bands->fft_min, bands->fft_max, bands->fft_width);
+        //         ESP_LOGI(TAG, LOG_COLOR_I"%d [%d...%d]: %d", i, bands->fft_min, bands->fft_max, bands->fft_width);
         //         break;
-
         // }
 
         sum += width;

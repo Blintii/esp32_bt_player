@@ -7,7 +7,6 @@ import datetime
 
 # this script should be called from /main/CMakeLists.txt in the start of build process
 
-
 def calc_window():
     tmp_N = DSP_FFT_IN_N - 1
     i = 0
@@ -36,7 +35,7 @@ def calc_twiddle():
 def calc_revbits():
     i = 0
 
-    while i < DSP_FFT_RES_N:
+    while i < DSP_FFT_IN_N:
         rev_bit = 0
         n = 0
 
@@ -51,7 +50,6 @@ def calc_revbits():
 
         file.write(str(rev_bit))
         i += 1
-
 
 if(3 < len(sys.argv) and sys.argv[1] == "--fft_exp"):
     now = datetime.datetime.now()

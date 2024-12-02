@@ -18,6 +18,8 @@
 #include "dns_server.h"
 #include "file_system.h"
 #include "storage.h"
+#include "dsp.h"
+#include "math.h"
 
 
 static const char *TAG = LOG_COLOR("37") "APP";
@@ -135,7 +137,7 @@ void list_tasks_stack_info()
         allocated statically at compile time. */
     pxTaskStatusArray = pvPortMalloc( uxArraySize * sizeof( TaskStatus_t ) );
 
-    if( pxTaskStatusArray == NULL ) ESP_LOGE(TAGE, "NULL port malloc");
+    if( pxTaskStatusArray == NULL ) ESP_LOGE(TAGE, "NULL port malloc, can't get tasks stack info");
     else
     {
         /* Generate raw status information about each task. */

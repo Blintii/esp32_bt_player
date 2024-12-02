@@ -19,15 +19,15 @@ static const char *TAGE = "WS281x";
 static const rmt_bytes_encoder_config_t ws281x_encoder_cfg = {
     .bit0 = { // 0 code, if bit is set
         .level0 = 1,
-        .duration0 = MLED_NS_TO_DURATION(260), // T0H
+        .duration0 = MLED_NS_TO_DURATION(270), // T0H
         .level1 = 0,
-        .duration1 = MLED_NS_TO_DURATION(660), // T0L
+        .duration1 = MLED_NS_TO_DURATION(670), // T0L
     },
     .bit1 = { // 1 code, if bit is not set
         .level0 = 1,
-        .duration0 = MLED_NS_TO_DURATION(660), // T1H
+        .duration0 = MLED_NS_TO_DURATION(670), // T1H
         .level1 = 0,
-        .duration1 = MLED_NS_TO_DURATION(260), // T1L
+        .duration1 = MLED_NS_TO_DURATION(270), // T1L
     },
     .flags.msb_first = 1 // WS281x require high bit data is first: 7 -> 0
 };

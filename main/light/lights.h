@@ -81,7 +81,7 @@ extern lights_zone_list lights_zones[MLED_STRIP_N];
 
 void lights_main();
 void lights_set_strip_size(size_t strip_index, size_t pixel_n);
-void lights_new_zone(size_t strip_index, size_t pixel_n);
+lights_zone_chain *lights_new_zone(size_t strip_index, size_t pixel_n);
 void lights_shader_init_fft(lights_zone_chain *zone);
 
 

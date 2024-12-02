@@ -495,6 +495,8 @@ static bool tasks_audio_stream_prepare()
         {
             if(pdTRUE == xSemaphoreTake(dsp_out_semaphore, portMAX_DELAY))
             {
+                list_tasks_stack_info();
+
                 if(dsp_fft_buf_create())
                 {
                     ach_player_start();
@@ -504,6 +506,7 @@ static bool tasks_audio_stream_prepare()
                 else dsp_fft_buf_del();
 
                 xSemaphoreGive(dsp_out_semaphore);
+                list_tasks_stack_info();
             }
             else PRINT_TRACE();
 
@@ -624,132 +627,175 @@ static void tasks_lights()
     mled_rgb_order colors = {.i_r = 1, .i_g = 0, .i_b = 2};
     mled_channels[0].rgb_order = colors;
     mled_channels[1].rgb_order = colors;
-    // uint8_t i = 0;
-    // lights_shader *shader;
-    // lights_zone *zone = lights_set_zone(i++, 0, 0, 22, colors);
-    // {
-    //     shader = &zone->shader;
-    //     shader->type = SHADER_FADE;
-    //     color_hsl pattern[] = {
-    //         {350, 1, 0.1f},
-    //         {10, 1, 0.1f},
-    //     };
-    //     color_hsl *buf = (color_hsl*) malloc(sizeof(pattern));
-    //     memcpy(buf, pattern, sizeof(pattern));
-    //     shader->cfg.shader_fade = (lights_shader_cfg_fade) {
-    //         .colors = buf,
-    //         .color_n = 2
-    //     };
-    //     shader->need_render = true;
-    // }
-    // zone = lights_set_zone(i++, 1, 60, 35, colors);
-    // {
-    //     shader = &zone->shader;
-    //     shader->type = SHADER_FFT;
-    //     color_hsl pattern[] = {
-    //         {0, 1, 0.5f},
-    //         {20, 1, 0.5f},
-    //         {165, 1, 0.5f},
-    //         {310, 1, 0.5f},
-    //         {340, 1, 0.5f}
-    //     };
-    //     color_hsl *buf = (color_hsl*) malloc(sizeof(pattern));
-    //     memcpy(buf, pattern, sizeof(pattern));
-    //     shader->cfg.shader_fft = (lights_shader_cfg_fft) {
-    //         .colors = buf,
-    //         .color_n = sizeof(pattern)/sizeof(color_hsl),
-    //         .intensity = 100.0f,
-    //         .is_right = false,
-    //         .mirror = true
-    //     };
-    //     lights_shader_init_fft(zone);
-    //     shader->need_render = true;
-    // }
-    // zone = lights_set_zone(i++, 1, 96, 35, colors);
-    // {
-    //     shader = &zone->shader;
-    //     shader->type = SHADER_FFT;
-    //     color_hsl pattern[] = {
-    //         {0, 1, 0.5f},
-    //         {20, 1, 0.5f},
-    //         {165, 1, 0.5f},
-    //         {310, 1, 0.5f},
-    //         {340, 1, 0.5f}
-    //     };
-    //     color_hsl *buf = (color_hsl*) malloc(sizeof(pattern));
-    //     memcpy(buf, pattern, sizeof(pattern));
-    //     shader->cfg.shader_fft = (lights_shader_cfg_fft) {
-    //         .colors = buf,
-    //         .color_n = sizeof(pattern)/sizeof(color_hsl),
-    //         .intensity = 100.0f,
-    //         .is_right = true,
-    //         .mirror = false
-    //     };
-    //     lights_shader_init_fft(zone);
-    //     shader->need_render = true;
-    // }
-    size_t item_n;
-    mled_strip *strip;
-    const float step = 40.0f / (float)AUDIO_BUF_LEN;
-    float max;
-    uint8_t *px_buf;
+    lights_shader *shader;
+    vTaskDelay(pdMS_TO_TICKS(3333));
+    list_tasks_stack_info();
+    lights_zone_chain *zone = lights_new_zone(0, 22);
+    if(zone)
+    {
+        shader = &zone->shader;
+        shader->type = SHADER_FADE;
+        color_hsl pattern[] = {
+            {30, 1, 0.015f},
+            {20, 1, 0.015f},
+        };
+        color_hsl *buf = (color_hsl*) malloc(sizeof(pattern));
+        memcpy(buf, pattern, sizeof(pattern));
+        shader->cfg.shader_fade = (lights_shader_cfg_fade) {
+            .colors = buf,
+            .color_n = sizeof(pattern)/sizeof(color_hsl)
+        };
+        shader->need_render = true;
+    }
+    zone = lights_new_zone(0, 22);
+    if(zone)
+    {
+        shader = &zone->shader;
+        shader->type = SHADER_FADE;
+        color_hsl pattern[] = {
+            {20, 1, 0.015f},
+            {10, 1, 0.015f},
+        };
+        color_hsl *buf = (color_hsl*) malloc(sizeof(pattern));
+        memcpy(buf, pattern, sizeof(pattern));
+        shader->cfg.shader_fade = (lights_shader_cfg_fade) {
+            .colors = buf,
+            .color_n = sizeof(pattern)/sizeof(color_hsl)
+        };
+        shader->need_render = true;
+    }
+    zone = lights_new_zone(0, 55);
+    if(zone)
+    {
+        shader = &zone->shader;
+        shader->type = SHADER_FADE;
+        color_hsl pattern[] = {
+            {10, 1, 0.015f},
+            {0, 1, 0.015f},
+        };
+        color_hsl *buf = (color_hsl*) malloc(sizeof(pattern));
+        memcpy(buf, pattern, sizeof(pattern));
+        shader->cfg.shader_fade = (lights_shader_cfg_fade) {
+            .colors = buf,
+            .color_n = sizeof(pattern)/sizeof(color_hsl)
+        };
+        shader->need_render = true;
+    }
+    zone = lights_new_zone(0, 51);
+    if(zone)
+    {
+        shader = &zone->shader;
+        shader->type = SHADER_FFT;
+        color_hsl pattern[] = {
+            {0, 1, 0.5f},
+            {20, 1, 0.5f},
+            {165, 1, 0.5f},
+            {310, 1, 0.5f},
+            {340, 1, 0.5f}
+        };
+        color_hsl *buf = (color_hsl*) malloc(sizeof(pattern));
+        memcpy(buf, pattern, sizeof(pattern));
+        shader->cfg.shader_fft = (lights_shader_cfg_fft) {
+            .colors = buf,
+            .color_n = sizeof(pattern)/sizeof(color_hsl),
+            .intensity = 100.0f,
+            .is_right = false,
+            .mirror = true
+        };
+        lights_shader_init_fft(zone);
+        shader->need_render = true;
+    }
+    zone = lights_new_zone(1, 22);
+    if(zone)
+    {
+        shader = &zone->shader;
+        shader->type = SHADER_FADE;
+        color_hsl pattern[] = {
+            {170, 1, 0.015f},
+            {180, 1, 0.015f},
+        };
+        color_hsl *buf = (color_hsl*) malloc(sizeof(pattern));
+        memcpy(buf, pattern, sizeof(pattern));
+        shader->cfg.shader_fade = (lights_shader_cfg_fade) {
+            .colors = buf,
+            .color_n = sizeof(pattern)/sizeof(color_hsl)
+        };
+        shader->need_render = true;
+    }
+    zone = lights_new_zone(1, 22);
+    if(zone)
+    {
+        shader = &zone->shader;
+        shader->type = SHADER_FADE;
+        color_hsl pattern[] = {
+            {180, 1, 0.015f},
+            {190, 1, 0.015f},
+        };
+        color_hsl *buf = (color_hsl*) malloc(sizeof(pattern));
+        memcpy(buf, pattern, sizeof(pattern));
+        shader->cfg.shader_fade = (lights_shader_cfg_fade) {
+            .colors = buf,
+            .color_n = sizeof(pattern)/sizeof(color_hsl)
+        };
+        shader->need_render = true;
+    }
+    zone = lights_new_zone(1, 55);
+    if(zone)
+    {
+        shader = &zone->shader;
+        shader->type = SHADER_FADE;
+        color_hsl pattern[] = {
+            {190, 1, 0.015f},
+            {200, 1, 0.015f},
+        };
+        color_hsl *buf = (color_hsl*) malloc(sizeof(pattern));
+        memcpy(buf, pattern, sizeof(pattern));
+        shader->cfg.shader_fade = (lights_shader_cfg_fade) {
+            .colors = buf,
+            .color_n = sizeof(pattern)/sizeof(color_hsl)
+        };
+        shader->need_render = true;
+    }
+    zone = lights_new_zone(1, 51);
+    if(zone)
+    {
+        shader = &zone->shader;
+        shader->type = SHADER_FFT;
+        color_hsl pattern[] = {
+            {0, 1, 0.5f},
+            {20, 1, 0.5f},
+            {165, 1, 0.5f},
+            {310, 1, 0.5f},
+            {340, 1, 0.5f}
+        };
+        color_hsl *buf = (color_hsl*) malloc(sizeof(pattern));
+        memcpy(buf, pattern, sizeof(pattern));
+        shader->cfg.shader_fft = (lights_shader_cfg_fft) {
+            .colors = buf,
+            .color_n = sizeof(pattern)/sizeof(color_hsl),
+            .intensity = 100.0f,
+            .is_right = true,
+            .mirror = true
+        };
+        lights_shader_init_fft(zone);
+        shader->need_render = true;
+    }
 
+    TickType_t lastWakeTime;
+    list_tasks_stack_info();
     ESP_LOGI(TAG, "lights enter infinite loop");
     while(1)
     {
-        // if(pdTRUE == xSemaphoreTake(dsp_out_semaphore, portMAX_DELAY))
-        // {
-        //     lights_main();
-        //     xSemaphoreGive(dsp_out_semaphore);
-        // }
-        // else PRINT_TRACE();
+        lastWakeTime = xTaskGetTickCount();
 
-        item_n = 0;
-
-        if(audio_stream_ringbuf) item_n = AUDIO_BUF_LEN - xRingbufferGetCurFreeSize(audio_stream_ringbuf);
-
-        for(uint8_t strip_index = 0; strip_index < MLED_STRIP_N; strip_index++)
+        if(pdTRUE == xSemaphoreTake(dsp_out_semaphore, portMAX_DELAY))
         {
-            strip = &mled_channels[strip_index];
-            max = step * (float)item_n;
-            px_buf = strip->pixels.data + strip->pixels.data_size - 3;
-
-            for(size_t i = 0; i < 40; i++)
-            {
-                if(strip->pixels.data_size < (px_buf + 3 - strip->pixels.data))
-                {
-                    ESP_LOGE(TAGE, "gyászoslelkű teeeee");
-                    vTaskDelay(pdMS_TO_TICKS(5000));
-                    break;
-                }
-
-                if(i < max)
-                {
-                    px_buf[colors.i_r] = 150;
-
-                    if(strip_index)
-                    {
-                        px_buf[colors.i_g] = 20;
-                        px_buf[colors.i_b] = 0;
-                    }
-                    else
-                    {
-                        px_buf[colors.i_g] = 0;
-                        px_buf[colors.i_b] = 20;
-                    }
-                }
-                else
-                {
-                    px_buf[colors.i_r] = 4;
-                    px_buf[colors.i_g] = 0;
-                    px_buf[colors.i_b] = 0;
-                }
-
-                px_buf -= 3;
-            }
-
-            mled_update(strip);
+            lights_main();
+            xSemaphoreGive(dsp_out_semaphore);
         }
+        else PRINT_TRACE();
+
+        xTaskDelayUntil(&lastWakeTime, TASKS_LIGHTS_MIN_TIME);
     }
 }
 
