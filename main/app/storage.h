@@ -10,12 +10,12 @@
 
 
 #define STORAGE_PATH_CONFIG "/spiffs/config.json"
-#define STORAGE_FILE_SIZE 1536
 
 
 cJSON *storage_load(void);
 void storage_save(cJSON *json);
 void storage_config_parse();
+void storage_save_lights();
 
 
 #endif /* STORAGE_H */

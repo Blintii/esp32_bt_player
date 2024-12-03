@@ -11,6 +11,7 @@
 #include "bt_profiles.h"
 #include "lights.h"
 #include "dsp.h"
+#include "storage.h"
 
 
 typedef enum {
@@ -47,7 +48,10 @@ static SemaphoreHandle_t audio_semaphore = NULL;
 static SemaphoreHandle_t dsp_in_semaphore = NULL;
 /* used for make thread safe the DSP FFT result values r/w */
 static SemaphoreHandle_t dsp_out_semaphore = NULL;
+/* used for make thread safe the lights zone configs */
+static SemaphoreHandle_t lights_semaphore = NULL;
 static QueueHandle_t mails_audio_player = NULL;
+static QueueHandle_t mails_lights= NULL;
 static RingbufHandle_t audio_stream_ringbuf = NULL;
 static tasks_signal_throttled throttled_signals[TASKS_INST_MAX][TASKS_SIG_MAX] = {0}; // semaphored with throttler_semaphore
 static audio_state_t audio_state = AUDIO_STATE_INIT; // semaphored with audio_semaphore
@@ -71,8 +75,13 @@ void tasks_create()
     dsp_out_semaphore = xSemaphoreCreateBinary();
     ERR_IF_NULL_RESET(dsp_out_semaphore);
     xSemaphoreGive(dsp_out_semaphore);
+    lights_semaphore = xSemaphoreCreateBinary();
+    ERR_IF_NULL_RESET(lights_semaphore);
+    xSemaphoreGive(lights_semaphore);
     mails_audio_player = xQueueCreate(10, sizeof(tasks_signal));
     ERR_IF_NULL_RESET(mails_audio_player);
+    mails_lights = xQueueCreate(3, sizeof(tasks_signal));
+    ERR_IF_NULL_RESET(mails_lights);
     ESP_LOGI(TAG, "init variables OK");
 
     ERR_CHECK_RESET(pdPASS != xTaskCreatePinnedToCore(tasks_throttler, "Throttler", 1984, NULL, 12, NULL, 1));
@@ -91,7 +100,7 @@ void tasks_message(tasks_signal signal)
     //     case TASKS_SIG_AUDIO_STREAM_SUSPEND: ESP_LOGW(TAG, "%s AUDIO_STREAM_SUSPEND", __func__); break;
     //     case TASKS_SIG_AUDIO_DATA_SUFFICIENT: ESP_LOGW(TAG, "%s AUDIO_DATA_SUFFICIENT", __func__); break;
     //     case TASKS_SIG_AUDIO_VOLUME: ESP_LOGW(TAG, "%s AUDIO_VOLUME", __func__); break;
-    //     default: ESP_LOGW(TAG, "%s invalid type", __func__); break;
+    //     default: ERR_BAD_CASE(signal.type, "%d");
     // }
 
     switch(signal.type)
@@ -107,7 +116,6 @@ void tasks_message(tasks_signal signal)
         default:
             ESP_LOGE(TAGE, "signal task: %d, signal type: %d", signal.aim_task, signal.type);
             PRINT_TRACE();
-            break;
     }
 }
 
@@ -212,6 +220,17 @@ void tasks_audio_data(const uint8_t *data, size_t size)
     }
 }
 
+bool tasks_lights_lock()
+{
+    ERR_CHECK_RETURN_VAL(pdTRUE == xSemaphoreTake(lights_semaphore, portMAX_DELAY), false);
+    return true;
+}
+
+void tasks_lights_release()
+{
+    xSemaphoreGive(lights_semaphore);
+}
+
 static void tasks_throttler()
 {
     ESP_LOGI(TAG, "throttler started");
@@ -295,7 +314,7 @@ static void tasks_send_throttled_signal(tasks_signal signal, TickType_t throttle
     //     case TASKS_SIG_AUDIO_STREAM_SUSPEND: ESP_LOGW(TAG, "%s AUDIO_STREAM_SUSPEND", __func__); break;
     //     case TASKS_SIG_AUDIO_DATA_SUFFICIENT: ESP_LOGW(TAG, "%s AUDIO_DATA_SUFFICIENT", __func__); break;
     //     case TASKS_SIG_AUDIO_VOLUME: ESP_LOGW(TAG, "%s AUDIO_VOLUME", __func__); break;
-    //     default: ESP_LOGW(TAG, "%s invalid type", __func__); break;
+    //     default: ERR_BAD_CASE(signal.type, "%d");
     // }
 
     bool immediate = false;
@@ -338,6 +357,7 @@ static void tasks_audio_player()
     ESP_LOGI(TAG, "audio player enter infinite loop");
     while(1)
     {
+        signal = (tasks_signal) {.type = TASKS_SIG_UNKNOWN, .aim_task = TASKS_INST_UNKNOWN};
         /* if audio stream ongoing, no block the audio playing */
         if(audio_state >= AUDIO_STATE_PLAY) tick = 0;
         else tick = portMAX_DELAY;
@@ -382,7 +402,6 @@ static void tasks_audio_player()
                 }
                 default:
                     ERR_BAD_CASE(signal.type, "%d");
-                    break;
             }
 
             if(throttled_signals[TASKS_INST_AUDIO_PLAYER][signal.type].need_acknowledge)
@@ -555,7 +574,7 @@ static void tasks_signal_send(tasks_signal signal)
     //     case TASKS_SIG_AUDIO_STREAM_SUSPEND: ESP_LOGW(TAG, "%s AUDIO_STREAM_SUSPEND", __func__); break;
     //     case TASKS_SIG_AUDIO_DATA_SUFFICIENT: ESP_LOGW(TAG, "%s AUDIO_DATA_SUFFICIENT", __func__); break;
     //     case TASKS_SIG_AUDIO_VOLUME: ESP_LOGW(TAG, "%s AUDIO_VOLUME", __func__); break;
-    //     default: break;
+    //     default: ERR_BAD_CASE(signal.type, "%d");
     // }
 
     switch(signal.aim_task)
@@ -569,7 +588,6 @@ static void tasks_signal_send(tasks_signal signal)
         default:
             ESP_LOGE(TAGE, "signal task: %d, signal type: %d", signal.aim_task, signal.type);
             PRINT_TRACE();
-            break;
     }
 }
 
@@ -607,7 +625,7 @@ static void tasks_dsp()
 
         rip_count++;
 
-        if(1000 < rip_count)
+        if(999 < rip_count)
         {
             ESP_LOGW(TAG, LOG_COLOR_W"DSP skipped %d tick under %d times", rip_sum, rip_count);
             rip_count = 0;
@@ -616,182 +634,36 @@ static void tasks_dsp()
     }
 }
 
-#include "string.h"
-
 static void tasks_lights()
 {
     ESP_LOGI(TAG, "lights started");
-    lights_set_strip_size(0, 150);
-    lights_set_strip_size(1, 150);
-    ESP_LOGI(TAG, "strips inited");
-    mled_rgb_order colors = {.i_r = 1, .i_g = 0, .i_b = 2};
-    mled_channels[0].rgb_order = colors;
-    mled_channels[1].rgb_order = colors;
-    lights_shader *shader;
-    vTaskDelay(pdMS_TO_TICKS(3333));
-    list_tasks_stack_info();
-    lights_zone_chain *zone = lights_new_zone(0, 22);
-    if(zone)
-    {
-        shader = &zone->shader;
-        shader->type = SHADER_FADE;
-        color_hsl pattern[] = {
-            {30, 1, 0.015f},
-            {20, 1, 0.015f},
-        };
-        color_hsl *buf = (color_hsl*) malloc(sizeof(pattern));
-        memcpy(buf, pattern, sizeof(pattern));
-        shader->cfg.shader_fade = (lights_shader_cfg_fade) {
-            .colors = buf,
-            .color_n = sizeof(pattern)/sizeof(color_hsl)
-        };
-        shader->need_render = true;
-    }
-    zone = lights_new_zone(0, 22);
-    if(zone)
-    {
-        shader = &zone->shader;
-        shader->type = SHADER_FADE;
-        color_hsl pattern[] = {
-            {20, 1, 0.015f},
-            {10, 1, 0.015f},
-        };
-        color_hsl *buf = (color_hsl*) malloc(sizeof(pattern));
-        memcpy(buf, pattern, sizeof(pattern));
-        shader->cfg.shader_fade = (lights_shader_cfg_fade) {
-            .colors = buf,
-            .color_n = sizeof(pattern)/sizeof(color_hsl)
-        };
-        shader->need_render = true;
-    }
-    zone = lights_new_zone(0, 55);
-    if(zone)
-    {
-        shader = &zone->shader;
-        shader->type = SHADER_FADE;
-        color_hsl pattern[] = {
-            {10, 1, 0.015f},
-            {0, 1, 0.015f},
-        };
-        color_hsl *buf = (color_hsl*) malloc(sizeof(pattern));
-        memcpy(buf, pattern, sizeof(pattern));
-        shader->cfg.shader_fade = (lights_shader_cfg_fade) {
-            .colors = buf,
-            .color_n = sizeof(pattern)/sizeof(color_hsl)
-        };
-        shader->need_render = true;
-    }
-    zone = lights_new_zone(0, 51);
-    if(zone)
-    {
-        shader = &zone->shader;
-        shader->type = SHADER_FFT;
-        color_hsl pattern[] = {
-            {0, 1, 0.5f},
-            {20, 1, 0.5f},
-            {165, 1, 0.5f},
-            {310, 1, 0.5f},
-            {340, 1, 0.5f}
-        };
-        color_hsl *buf = (color_hsl*) malloc(sizeof(pattern));
-        memcpy(buf, pattern, sizeof(pattern));
-        shader->cfg.shader_fft = (lights_shader_cfg_fft) {
-            .colors = buf,
-            .color_n = sizeof(pattern)/sizeof(color_hsl),
-            .intensity = 100.0f,
-            .is_right = false,
-            .mirror = true
-        };
-        lights_shader_init_fft(zone);
-        shader->need_render = true;
-    }
-    zone = lights_new_zone(1, 22);
-    if(zone)
-    {
-        shader = &zone->shader;
-        shader->type = SHADER_FADE;
-        color_hsl pattern[] = {
-            {170, 1, 0.015f},
-            {180, 1, 0.015f},
-        };
-        color_hsl *buf = (color_hsl*) malloc(sizeof(pattern));
-        memcpy(buf, pattern, sizeof(pattern));
-        shader->cfg.shader_fade = (lights_shader_cfg_fade) {
-            .colors = buf,
-            .color_n = sizeof(pattern)/sizeof(color_hsl)
-        };
-        shader->need_render = true;
-    }
-    zone = lights_new_zone(1, 22);
-    if(zone)
-    {
-        shader = &zone->shader;
-        shader->type = SHADER_FADE;
-        color_hsl pattern[] = {
-            {180, 1, 0.015f},
-            {190, 1, 0.015f},
-        };
-        color_hsl *buf = (color_hsl*) malloc(sizeof(pattern));
-        memcpy(buf, pattern, sizeof(pattern));
-        shader->cfg.shader_fade = (lights_shader_cfg_fade) {
-            .colors = buf,
-            .color_n = sizeof(pattern)/sizeof(color_hsl)
-        };
-        shader->need_render = true;
-    }
-    zone = lights_new_zone(1, 55);
-    if(zone)
-    {
-        shader = &zone->shader;
-        shader->type = SHADER_FADE;
-        color_hsl pattern[] = {
-            {190, 1, 0.015f},
-            {200, 1, 0.015f},
-        };
-        color_hsl *buf = (color_hsl*) malloc(sizeof(pattern));
-        memcpy(buf, pattern, sizeof(pattern));
-        shader->cfg.shader_fade = (lights_shader_cfg_fade) {
-            .colors = buf,
-            .color_n = sizeof(pattern)/sizeof(color_hsl)
-        };
-        shader->need_render = true;
-    }
-    zone = lights_new_zone(1, 51);
-    if(zone)
-    {
-        shader = &zone->shader;
-        shader->type = SHADER_FFT;
-        color_hsl pattern[] = {
-            {0, 1, 0.5f},
-            {20, 1, 0.5f},
-            {165, 1, 0.5f},
-            {310, 1, 0.5f},
-            {340, 1, 0.5f}
-        };
-        color_hsl *buf = (color_hsl*) malloc(sizeof(pattern));
-        memcpy(buf, pattern, sizeof(pattern));
-        shader->cfg.shader_fft = (lights_shader_cfg_fft) {
-            .colors = buf,
-            .color_n = sizeof(pattern)/sizeof(color_hsl),
-            .intensity = 100.0f,
-            .is_right = true,
-            .mirror = true
-        };
-        lights_shader_init_fft(zone);
-        shader->need_render = true;
-    }
-
     TickType_t lastWakeTime;
-    list_tasks_stack_info();
+    tasks_signal signal;
+
     ESP_LOGI(TAG, "lights enter infinite loop");
     while(1)
     {
         lastWakeTime = xTaskGetTickCount();
 
-        if(pdTRUE == xSemaphoreTake(dsp_out_semaphore, portMAX_DELAY))
+        if(pdTRUE == xSemaphoreTake(lights_semaphore, portMAX_DELAY))
         {
-            lights_main();
-            xSemaphoreGive(dsp_out_semaphore);
+            signal = (tasks_signal) {.type = TASKS_SIG_UNKNOWN, .aim_task = TASKS_INST_UNKNOWN};
+
+            if(pdTRUE == xQueueReceive(mails_lights, &signal, 0))
+            {
+                if(signal.type == TASKS_SIG_CONFIG_LIGHTS_SAVE) storage_save_lights();
+                else ERR_BAD_CASE(signal.type, "%d");
+            }
+
+            /* take the DSP out semaphore for safely read consistent FFT result */
+            if(pdTRUE == xSemaphoreTake(dsp_out_semaphore, portMAX_DELAY))
+            {
+                lights_main();
+                xSemaphoreGive(dsp_out_semaphore);
+            }
+            else PRINT_TRACE();
+
+            xSemaphoreGive(lights_semaphore);
         }
         else PRINT_TRACE();
 
@@ -810,7 +682,7 @@ static void tasks_lights()
 //         case TASKS_INST_AUDIO_DSP: printf("task: AUDIO_DSP\n"); break;
 //         case TASKS_INST_LIGHT: printf("task: LIGHT\n"); break;
 //         case TASKS_INST_HOTSPOT: printf("task: HOTSPOT\n"); break;
-//         default: printf("task has invalid value\n"); break;
+//         default: printf("task has invalid value\n");
 //     }
 //     switch(signal->waiting_signal.type)
 //     {
@@ -819,7 +691,7 @@ static void tasks_lights()
 //         case TASKS_SIG_AUDIO_STREAM_SUSPEND: printf("type: AUDIO_STREAM_SUSPEND\n"); break;
 //         case TASKS_SIG_AUDIO_DATA_SUFFICIENT: printf("type: AUDIO_DATA_SUFFICIENT\n"); break;
 //         case TASKS_SIG_AUDIO_VOLUME: printf("type: AUDIO_VOLUME\n"); break;
-//         default: printf("type has invalid value\n"); break;
+//         default: printf("type has invalid value\n");
 //     }
 //     printf("tick left: %ld\n", signal->tick_left);
 //     printf("live: %d\n", signal->live);

@@ -104,6 +104,5 @@ static void gap_callback(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *par
         }
         default:
             ERR_BAD_CASE(event, "%d");
-            break;
     }
 }

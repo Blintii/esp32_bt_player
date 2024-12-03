@@ -38,7 +38,8 @@ typedef enum {
 } web_ws_id_serverbound;
 
 
-esp_err_t web_start_server();
+void web_server_start();
+void web_server_stop();
 esp_err_t web_redirect(httpd_req_t *req, httpd_err_code_t err);
 esp_err_t web_file_content(httpd_req_t *req);
 esp_err_t web_unsafe_file_content(httpd_req_t *req);

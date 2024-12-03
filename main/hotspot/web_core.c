@@ -15,12 +15,9 @@ static const char *TAGE = LOG_COLOR("96") "web" LOG_COLOR_E;
 httpd_handle_t web_server_hd = NULL;
 
 
-/* Function to start the file server */
-esp_err_t web_start_server()
+void web_server_start()
 {
-    esp_log_level_set("httpd_uri", ESP_LOG_ERROR);
-    esp_log_level_set("httpd_txrx", ESP_LOG_ERROR);
-    esp_log_level_set("httpd_parse", ESP_LOG_ERROR);
+    if(web_server_hd) return;
 
     ESP_LOGI(TAG, "HTTP server starting...");
 
@@ -43,12 +40,11 @@ esp_err_t web_start_server()
 
     if(ESP_OK != err)
     {
-        ESP_LOGE(TAGE, "failed to start file server: %s", esp_err_to_name(err));
-        return err;
+        ESP_LOGE(TAGE, "failed to start web server: %s", esp_err_to_name(err));
+        return;
     }
     else ESP_LOGI(TAG, "HTTP server started on port: '%d'", config.server_port);
 
-    /* URI handler for getting files */
     httpd_uri_t ws_handler = {
         .uri = "/ws",
         .method = HTTP_GET,
@@ -65,15 +61,23 @@ esp_err_t web_start_server()
     ESP_ERROR_CHECK(httpd_register_uri_handler(web_server_hd, &unsafe_content_handler));
 
     httpd_uri_t content_handler = {
-        .uri       = "/*",
-        .method    = HTTP_GET,
-        .handler   = web_file_content
+        .uri = "/*",
+        .method = HTTP_GET,
+        .handler = web_file_content
     };
     ESP_ERROR_CHECK(httpd_register_uri_handler(web_server_hd, &content_handler));
 
     ESP_ERROR_CHECK(httpd_register_err_handler(web_server_hd, HTTPD_405_METHOD_NOT_ALLOWED, web_redirect));
     ESP_LOGI(TAG, "HTTP server started OK");
-    return ESP_OK;
+}
+
+void web_server_stop()
+{
+    if(web_server_hd)
+    {
+        httpd_stop(web_server_hd);
+        web_server_hd = NULL;
+    }
 }
 
 esp_err_t web_redirect(httpd_req_t *req, httpd_err_code_t err)
@@ -81,6 +85,6 @@ esp_err_t web_redirect(httpd_req_t *req, httpd_err_code_t err)
     // ESP_LOGI(TAG, "%sRedirect %s to %s", LOG_COLOR(LOG_COLOR_BROWN), req->uri, URLredirect);
     httpd_resp_set_status(req, "302 Found");
     httpd_resp_set_hdr(req, "Location", URLredirect);
-    httpd_resp_send(req, NULL, 0);  // Response body can be empty
+    httpd_resp_send(req, NULL, 0);  // response body can be empty
     return ESP_OK;
 }

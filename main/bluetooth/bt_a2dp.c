@@ -140,7 +140,6 @@ static void a2dp_callback(esp_a2d_cb_event_t event, esp_a2d_cb_param_t *param)
         }
         default:
             ERR_BAD_CASE(event, "%d");
-            break;
     }
 }
 

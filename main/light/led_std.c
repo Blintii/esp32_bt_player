@@ -56,7 +56,6 @@ void sled_set(led_std_mode mode)
             break;
         default:
             ERR_BAD_CASE(mode, "%d");
-            break;
     }
 }
 

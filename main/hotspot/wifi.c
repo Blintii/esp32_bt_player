@@ -7,9 +7,7 @@
     CONDITIONS OF ANY KIND, either express or implied.
 */
 
-#include <sys/param.h>
 #include "esp_event.h"
-#include "esp_log.h"
 #include "esp_mac.h"
 #include "esp_wifi.h"
 #include "esp_netif.h"
@@ -17,6 +15,7 @@
 
 #include "app_tools.h"
 #include "wifi.h"
+#include "web.h"
 
 
 static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data);
@@ -26,18 +25,17 @@ static void wifi_init_softap();
 
 static const char *TAG = "wifi_ap";
 static const char *TAGE = "wifi_ap";
+static uint8_t ap_cnt = 0;
 
 
 void wifi_ini()
 {
-    esp_log_level_set("wifi", ESP_LOG_WARN);
-    esp_log_level_set("wifi_init", ESP_LOG_WARN);
     ESP_LOGI(TAG, "init...");
 
-    // Initialize Wi-Fi including netif
+    /* initialize Wi-Fi including netif */
     wifi_netif_create_wifi_ap();
 
-    // Initialise ESP32 in SoftAP mode
+    /* initialise ESP32 in SoftAP mode */
     wifi_init_softap();
 
     esp_wifi_set_max_tx_power(8); // 2dBM..20dBm -> (8..84)
@@ -54,12 +52,31 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
         wifi_event_ap_staconnected_t *event = (wifi_event_ap_staconnected_t *)event_data;
         ESP_LOGI(TAG, "station " MACSTR " join, AID=%d", MAC2STR(event->mac), event->aid);
         list_tasks_stack_info();
+
+        if(ap_cnt == 0)
+        {
+            ap_cnt++;
+            /* web server will serve clients with captive portal web page */
+            web_server_start();
+        }
     }
     else if(event_id == WIFI_EVENT_AP_STADISCONNECTED)
     {
         wifi_event_ap_stadisconnected_t *event = (wifi_event_ap_stadisconnected_t *)event_data;
         ESP_LOGI(TAG, "station " MACSTR " leave, AID=%d", MAC2STR(event->mac), event->aid);
         list_tasks_stack_info();
+
+        if(ap_cnt)
+        {
+            ap_cnt--;
+
+            if(ap_cnt == 0) web_server_stop();
+        }
+    }
+    else if(event_id == WIFI_EVENT_AP_PROBEREQRECVED)
+    {
+        wifi_event_ap_probe_req_rx_t *event = (wifi_event_ap_probe_req_rx_t *)event_data;
+        ESP_LOGI(TAG, "probe req: " MACSTR ", rssi=%d", MAC2STR(event->mac), event->rssi);
     }
 }
 
@@ -123,7 +140,7 @@ static void wifi_init_softap(void)
 
     char ip_addr[16];
     inet_ntoa_r(ip_info.ip.addr, ip_addr, 16);
-    ESP_LOGI(TAG, "Set up softAP with IP: %s", ip_addr);
+    ESP_LOGI(TAG, "set up softAP with IP: %s", ip_addr);
 
     ESP_LOGI(TAG, "wifi_init_softap finished. %sSSID: '%s' password: '%s'", LOG_BOLD("95"), WIFI_SSID, WIFI_PASSWORD);
 }

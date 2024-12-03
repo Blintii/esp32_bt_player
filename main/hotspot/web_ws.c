@@ -12,6 +12,7 @@ static void web_ws_send_done_callback(esp_err_t err, int socketfd, void *arg);
 static void web_ws_process_msg(httpd_req_t *req, httpd_ws_frame_t frame);
 static void web_ws_send_strips(int sockfd);
 static void web_ws_send_zones(int sockfd);
+static void web_ws_send_shader(lights_zone_chain *zone, uint8_t strip_index, uint8_t zone_index, int sockfd);
 
 
 static const char *TAG = LOG_COLOR("96") "web_ws" LOG_RESET_COLOR;
@@ -26,6 +27,21 @@ esp_err_t web_ws(httpd_req_t *req)
         int sockfd = httpd_req_to_sockfd(req);
         web_ws_send_strips(sockfd);
         web_ws_send_zones(sockfd);
+
+        for(uint8_t strip_index = 0; strip_index < MLED_STRIP_N; strip_index++)
+        {
+            lights_zone_list *list = &lights_zones[strip_index];
+            lights_zone_chain *zone = list->first;
+            uint8_t zone_index = 0;
+
+            while(zone)
+            {
+                web_ws_send_shader(zone, strip_index, zone_index, sockfd);
+                zone = zone->next;
+                zone_index++;
+            }
+        }
+
         return ESP_OK;
     }
 
@@ -57,11 +73,11 @@ esp_err_t web_ws(httpd_req_t *req)
 
 void web_ws_send(int sockfd, uint8_t *payload, size_t len)
 {
-    httpd_ws_frame_t frame;
-    memset(&frame, 0, sizeof(httpd_ws_frame_t));
-    frame.payload = payload;
-    frame.len = len;
-    frame.type = HTTPD_WS_TYPE_BINARY;
+    httpd_ws_frame_t frame = {
+        .payload = payload,
+        .len = len,
+        .type = HTTPD_WS_TYPE_BINARY
+    };
 
     printf("WS_TX_%d[%d] = ", sockfd, len);
     PRINT_ARRAY_HEX(payload, len);
@@ -135,8 +151,8 @@ static void web_ws_send_zones(int sockfd)
         /* CID + strip index + zone_n * pixel_n */
         size_t len = 1 + 1 + list->zone_n * sizeof(size_t);
         uint8_t *payload = (uint8_t*)calloc(1, len);
-        uint8_t *p = payload;
         ERR_IF_NULL_RETURN(payload);
+        uint8_t *p = payload;
         *p++ = WEB_WS_CID_ZONE_CFG;
         *p++ = i;
         size_t *p_size = (size_t*)p;
@@ -149,7 +165,102 @@ static void web_ws_send_zones(int sockfd)
         }
 
         p = (uint8_t*)p_size;
-        ESP_LOGW(TAG, "send strips payload bytes: %d (check: %d)", len, (p - payload));
+        ESP_LOGW(TAG, "send zones payload bytes: %d (check: %d)", len, (p - payload));
         web_ws_send(sockfd, payload, len);
     }
+}
+
+static void web_ws_send_shader(lights_zone_chain *zone, uint8_t strip_index, uint8_t zone_index, int sockfd)
+{
+    lights_shader *shader = &zone->shader;
+    /* CID + strip index + zone index * shader type */
+    size_t len = 1 + 1 + 1 + 1;
+
+    switch(shader->type)
+    {
+        case SHADER_SINGLE:
+            len += 3;
+            break;
+        case SHADER_REPEAT:
+            len += shader->cfg.shader_repeat.color_n * sizeof(color_rgb);
+            break;
+        case SHADER_FADE:
+            len += shader->cfg.shader_fade.color_n * sizeof(color_hsl);
+            break;
+        case SHADER_FFT:
+            len += shader->cfg.shader_fft.color_n * sizeof(color_hsl);
+            /* is right + intensity + mirror */
+            len += 1 + sizeof(float) + 1;
+            break;
+        default:
+            ERR_BAD_CASE(shader->type, "%d");
+    }
+
+    uint8_t *payload = (uint8_t*)calloc(1, len);
+    ERR_IF_NULL_RETURN(payload);
+    uint8_t *p = payload;
+    *p++ = WEB_WS_CID_SHADER_CFG;
+    *p++ = strip_index;
+    *p++ = zone_index;
+    *p++ = shader->type;
+
+    switch(shader->type)
+    {
+        case SHADER_SINGLE: {
+            color_rgb color = shader->cfg.shader_single.color;
+            *p++ = color.r;
+            *p++ = color.g;
+            *p++ = color.b;
+            break;
+        }
+        case SHADER_REPEAT: {
+            lights_shader_cfg_repeat *cfg = &shader->cfg.shader_repeat;
+
+            for(uint8_t i = 0; i < cfg->color_n; i++)
+            {
+                *p++ = cfg->colors[i].r;
+                *p++ = cfg->colors[i].g;
+                *p++ = cfg->colors[i].b;
+            }
+            break;
+        }
+        case SHADER_FADE: {
+            lights_shader_cfg_fade *cfg = &shader->cfg.shader_fade;
+            float *p_float = (float*)p;
+
+            for(uint8_t i = 0; i < cfg->color_n; i++)
+            {
+                *p_float++ = cfg->colors[i].hue;
+                *p_float++ = cfg->colors[i].sat;
+                *p_float++ = cfg->colors[i].lum;
+            }
+
+            p = (uint8_t*)p_float;
+            break;
+        }
+        case SHADER_FFT: {
+            lights_shader_cfg_fft *cfg = &shader->cfg.shader_fft;
+            float *p_float = (float*)p;
+
+            for(uint8_t i = 0; i < cfg->color_n; i++)
+            {
+                *p_float++ = cfg->colors[i].hue;
+                *p_float++ = cfg->colors[i].sat;
+                *p_float++ = cfg->colors[i].lum;
+            }
+
+            p = (uint8_t*)p_float;
+            *p++ = cfg->is_right;
+            p_float = (float*)p;
+            *p_float++ = cfg->intensity;
+            p = (uint8_t*)p_float;
+            *p++ = cfg->mirror;
+            break;
+        }
+        default:
+            ERR_BAD_CASE(shader->type, "%d");
+    }
+
+    ESP_LOGW(TAG, "send zones shader bytes: %d (check: %d)", len, (p - payload));
+    web_ws_send(sockfd, payload, len);
 }

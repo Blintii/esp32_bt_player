@@ -45,6 +45,11 @@ void app_main(void)
     esp_log_level_set("gpio", ESP_LOG_WARN);
     esp_log_level_set("BT_LOG", ESP_LOG_WARN);
     esp_log_level_set("DNS", ESP_LOG_WARN);
+    esp_log_level_set("wifi", ESP_LOG_WARN);
+    esp_log_level_set("wifi_init", ESP_LOG_WARN);
+    esp_log_level_set("httpd_uri", ESP_LOG_ERROR);
+    esp_log_level_set("httpd_txrx", ESP_LOG_ERROR);
+    esp_log_level_set("httpd_parse", ESP_LOG_ERROR);
 
     ESP_LOGI(TAG, "NVS flash init...");
     /* initialize NVS — it is used to store PHY or RF modul calibration data
@@ -108,8 +113,6 @@ void app_main(void)
     dns_server_config_t config = DNS_SERVER_CONFIG_SINGLE("*" /* all A queries */, "WIFI_AP_DEF" /* softAP netif ID */);
     ERR_CHECK(start_dns_server(&config));
     ESP_LOGI(TAG, "DNS server started OK");
-    /* web server will serve clients with captive portal web page */
-    ERR_CHECK(web_start_server());
 
     storage_config_parse();
 

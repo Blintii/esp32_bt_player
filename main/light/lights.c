@@ -67,7 +67,7 @@ void lights_main()
                     case SHADER_REPEAT: lights_render_shader_repeat(zone, &update_mled); break;
                     case SHADER_FADE: lights_render_shader_fade(zone, &update_mled); break;
                     case SHADER_FFT: lights_render_shader_fft(zone, &update_mled); break;
-                    default: PRINT_TRACE(); break;
+                    default: PRINT_TRACE();
                 }
             }
 
@@ -82,7 +82,7 @@ void lights_set_strip_size(size_t strip_index, size_t pixel_n)
 {
     ERR_CHECK_RETURN(MLED_STRIP_N <= strip_index);
     mled_strip *strip = &mled_channels[strip_index];
-    ERR_CHECK_RETURN(pixel_n < lights_zones[strip_index].pixel_used_pos);
+    ERR_CHECK_RETURN(lights_zones[strip_index].first);
     mled_set_size(strip, pixel_n);
 }
 
@@ -357,7 +357,6 @@ static void fadeing(fading_ctx arg)
                 }
                 default:
                     ERR_BAD_CASE(arg.type, "%d");
-                    break;
             }
 
             work.hue += step.hue;
@@ -442,7 +441,6 @@ static void fft_band_map(lights_zone_chain *zone)
         //         break;
         //     default:
         //         ESP_LOGI(TAG, LOG_COLOR_I"%d [%d...%d]: %d", i, bands->fft_min, bands->fft_max, bands->fft_width);
-        //         break;
         // }
 
         sum += width;

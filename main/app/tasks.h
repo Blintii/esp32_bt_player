@@ -32,6 +32,7 @@ typedef enum {
     TASKS_SIG_AUDIO_STREAM_SUSPEND,
     TASKS_SIG_AUDIO_DATA_SUFFICIENT,
     TASKS_SIG_AUDIO_VOLUME,
+    TASKS_SIG_CONFIG_LIGHTS_SAVE,
     TASKS_SIG_MAX
 } tasks_signal_type;
 
@@ -60,6 +61,8 @@ typedef struct {
 void tasks_create();
 void tasks_message(tasks_signal signal);
 void tasks_audio_data(const uint8_t *data, size_t size);
+bool tasks_lights_lock();
+void tasks_lights_release();
 
 
 #endif /* __TASKS_H__ */
