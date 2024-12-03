@@ -1,13 +1,14 @@
-class ModbusDevice {
-    constructor(id, size) {
+class Strip {
+    constructor(id, pixelSize, rgbOrder) {
         this.id = id;
         this.exist = false;
-        this.size = size;
+        this.pixelSize = pixelSize;
+        this.rgbOrder = rgbOrder
         this.inputs = [];
         this.coils = [];
         this.address = null;
 
-        for(let i = 0; i < size; i++) {
+        for(let i = 0; i < 8; i++) {
             this.inputs[i] = false;
             this.coils[i] = false;
         }
@@ -22,12 +23,12 @@ class ModbusDevice {
     }
 }
 
-class RenderModbusDevice {
-    constructor(modbusDevice, htmlBox) {
-        this.device = modbusDevice;
+class RenderStrip {
+    constructor(strip, htmlBox) {
+        this.strip = strip;
         this.htmlBox = htmlBox;
         this.deleteBox = htmlBox.getElementsByClassName("uiDeviceDelete")[0];
-        this.addressTyper = new AddressTyper(this, htmlBox);
+        this.stripSizeTyper = new StripSizeTyper(this, htmlBox);
     }
 
     setDeviceName(text) {
@@ -40,40 +41,40 @@ class RenderModbusDevice {
         this.controlsUi = new RenderControlsUI(this);
         this.controlsUi.setupUI();
         this.deleteBox.onclick = () => {
-            let deviceID = this.device.id;
-            let addressText = this.device.address;
+            let deviceID = this.strip.id;
+            let addressText = this.strip.address;
             let text = `Delete device ${deviceID}?\n(address: 0x${addressText})`;
             deleteDialog.show(() => this.deleteControls(), text);
         };
         this.deleteBox.classList.remove("deviceNotExist");
     }
 
-    syncDeviceData() {
-        this.addressTyper.addressBox.textContent = this.device.address;
+    syncStripData() {
+        this.stripSizeTyper.addressBox.textContent = this.strip.address;
         this.controlsUi.syncControls();
     }
 
     deleteControls() {
         this.deleteBox.classList.add("deviceNotExist");
         this.controlsUi.controlBox.innerHTML = "";
-        this.addressTyper.addressBox.textContent = "";
+        this.stripSizeTyper.addressBox.textContent = "";
         this.deleteBox.onclick = null;
         this.controlsUi = null;
 
-        if(this.device.exist) {
-            showHeader(`Device ${this.device.id} deleted`, "rgb(190,30,0)", 3000);
-            this.device.address = null;
-            this.device.exist = false;
-            com.serverBound_deleteDevice(this.device.id);
+        if(this.strip.exist) {
+            showHeader(`Device ${this.strip.id} deleted`, "rgb(190,30,0)", 3000);
+            this.strip.address = null;
+            this.strip.exist = false;
+            com.serverBound_deleteDevice(this.strip.id);
         }
     }
 }
 
 class RenderControlsUI {
-    constructor(renderModbusDevice) {
-        this.parent = renderModbusDevice;
-        this.device = renderModbusDevice.device;
-        this.htmlBox = renderModbusDevice.htmlBox;
+    constructor(renderStrip) {
+        this.parent = renderStrip;
+        this.strip = renderStrip.strip;
+        this.htmlBox = renderStrip.htmlBox;
         this.controlBox = this.htmlBox.getElementsByClassName("uiControls")[0];
     }
 
@@ -92,7 +93,7 @@ class RenderControlsUI {
         coilsBoxText.textContent = "Coils";
         const bodyBox = coilsBox.getElementsByClassName("uiBody")[0];
 
-        for(let i = 0; i < this.device.size; i++) {
+        for(let i = 0; i < this.strip.pixelSize; i++) {
             let clone = tmpCheckBox.content.cloneNode(true).firstElementChild;
             clone.onclick = () => this.checkBoxCallback(clone, i);
             let text = clone.getElementsByClassName("uiCheckBoxText")[0];
@@ -118,14 +119,14 @@ class RenderControlsUI {
         if(box.classList.contains("deniedCheckBox")) return;
 
         if(box.classList.contains("checked")) {
-            this.device.setCoilValue(index, false);
+            this.strip.setCoilValue(index, false);
             this.setCoilChecked(box, false);
-            com.serverBound_coilSetOff(this.device.id, index);
+            com.serverBound_coilSetOff(this.strip.id, index);
         }
         else {
-            this.device.setCoilValue(index, true);
+            this.strip.setCoilValue(index, true);
             this.setCoilChecked(box, true);
-            com.serverBound_coilSetOn(this.device.id, index);
+            com.serverBound_coilSetOn(this.strip.id, index);
         }
     }
 
@@ -133,9 +134,9 @@ class RenderControlsUI {
         const checkBoxes = this.controlBox.getElementsByClassName("uiCheckBox");
         const leds = this.controlBox.getElementsByClassName("LED");
 
-        for(let i = 0; i < this.device.size; i++) {
-            this.setCoilChecked(checkBoxes[i], this.device.coils[i]);
-            this.setInputOn(leds[i], this.device.inputs[i]);
+        for(let i = 0; i < this.strip.pixelSize; i++) {
+            this.setCoilChecked(checkBoxes[i], this.strip.coils[i]);
+            this.setInputOn(leds[i], this.strip.inputs[i]);
         }
     }
 
@@ -150,11 +151,11 @@ class RenderControlsUI {
     }
 }
 
-class AddressTyper {
-    #hexPattern = /[^0-9a-fA-F]+/;
+class StripSizeTyper {
+    #hexPattern = /[^0-9]+/;
 
-    constructor(renderModbusDevice, htmlBox) {
-        this.parent = renderModbusDevice;
+    constructor(renderStrip, htmlBox) {
+        this.parent = renderStrip;
         this.addressBox = htmlBox.getElementsByClassName("uiDeviceAddressText")[0];
         this.parentAddressBox = htmlBox.getElementsByClassName("uiDeviceAddressBox")[0];
         this.buttonAddressSet = htmlBox.getElementsByClassName("uiDeviceAddressSet")[0];
@@ -191,8 +192,8 @@ class AddressTyper {
             else if(newVal.length == 1) newVal = "0" + newVal;
 
             this.addressBox.textContent = newVal;
-            this.parent.device.address = newVal;
-            com.serverBound_setAddress(this.parent.device.id, parseInt(newVal, 16));
+            this.parent.strip.address = newVal;
+            com.serverBound_setAddress(this.parent.strip.id, parseInt(newVal, 16));
         }
     }
 

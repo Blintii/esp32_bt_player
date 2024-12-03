@@ -116,7 +116,7 @@ static void web_ws_process_msg(httpd_req_t *req, httpd_ws_frame_t frame)
 static void web_ws_send_strips(int sockfd)
 {
     /* CID + strip_n * (pixel_n + rgb_order) */
-    size_t len = 1 + MLED_STRIP_N * (sizeof(size_t) + 3);
+    size_t len = 1 + sizeof(size_t) + MLED_STRIP_N * (sizeof(size_t) + 3);
     uint8_t *payload = (uint8_t*)calloc(1, len);
     ERR_IF_NULL_RETURN(payload);
     uint8_t *p = payload;

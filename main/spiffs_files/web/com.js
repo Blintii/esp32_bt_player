@@ -34,16 +34,32 @@ class MessageHandler {
         // 1st byte: clientbound ID
         switch(u8Array[0]) {
             case 0:
-                this.clientBound_deviceStatus(u8Array.slice(1));
+                this.clientBound_stripConfig(u8Array.slice(1));
+                break;
+            case 1:
+                this.clientBound_zoneConfig(u8Array.slice(1));
+                break;
+            case 2:
+                this.clientBound_shaderConfig(u8Array.slice(1));
                 break;
             default: console.error(`unknown CID: ${u8Array[0]}`);
         }
     }
 
     // CID 0
-    clientBound_deviceStatus(u8Array) {
-        refreshModbusDevices(this.isFirst, u8Array);
+    clientBound_stripConfig(u8Array) {
+        refreshStripConfig(this.isFirst, u8Array);
         if(this.isFirst) this.isFirst = false;
+    }
+
+    // CID 1
+    clientBound_zoneConfig(u8Array) {
+        console.log(`clientBound_zoneConfig: nincs lekezelve csoro CID1: ${u8Array}`)
+    }
+
+    // CID 2
+    clientBound_shaderConfig(u8Array) {
+        console.log(`clientBound_shaderConfig: nincs lekezelve csoro CID2: ${u8Array}`)
     }
 
     tx(serverBound_ID, dataArray) {

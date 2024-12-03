@@ -1,5 +1,5 @@
 
-const tmpModbusBox = document.getElementById("tmpModbusBox");
+const tmpStripBox = document.getElementById("tmpStripBox");
 const tmpControlItem = document.getElementById("tmpControlItem");
 const tmpCheckBox = document.getElementById("tmpCheckBox");
 const tmpLED = document.getElementById("tmpLED");
@@ -18,59 +18,53 @@ function onPageLoaded()
     ws.newSocket();
 }
 
-function refreshModbusDevices(isFirst, data) {
+function refreshStripConfig(isFirst, data) {
     let dataIndex = 0;
-    let deviceIndex = 0;
-    let modbusDevice;
-    let renderModbusDevice;
+    let stripIndex = 0;
+    let strip;
+    let renderStrip;
+    let dataView = new DataView(data.buffer);
+    /* strip_n * (pixel_n + rgb_order) */
 
     while(dataIndex < (data.length)) {
-        if(isFirst) renderModbusDevice = addNewModbusDevice(deviceIndex);
-        else renderModbusDevice = deviceList[deviceIndex];
+        if(isFirst) renderStrip = addNewStrip(stripIndex);
+        else renderStrip = deviceList[stripIndex];
 
-        modbusDevice = renderModbusDevice.device;
+        strip = renderStrip.strip;
 
-        // if next byte TRUE: device exist on ESP
-        if(data[dataIndex++])
-        {
-            // if device not exist yet in UI, need to setup
-            if(!modbusDevice.exist) {
-                modbusDevice.exist = true
-                renderModbusDevice.setupControls();
-            }
-
-            modbusDevice.address = data[dataIndex++].toString(16).toUpperCase();
-
-            if(modbusDevice.address.length == 1) modbusDevice.address = "0" + modbusDevice.address;
-
-            setBitValues(modbusDevice.coils, data[dataIndex++]);
-            setBitValues(modbusDevice.inputs, data[dataIndex++]);
-            renderModbusDevice.syncDeviceData();
-        }
-        else
-        {
-            // if device still exist in UI, need to delete
-            if(modbusDevice.exist) {
-                modbusDevice.exist = false;
-                renderModbusDevice.deleteControls();
-            }
+        // if device not exist yet in UI, need to setup
+        if(!strip.exist) {
+            strip.exist = true
+            renderStrip.setupControls();
         }
 
-        deviceIndex++;
+        // next byte is strip_n
+        strip.pixelSize = dataView.getUint32(dataIndex);
+        console.log(`pixel size: ${strip.pixelSize}`);
+        dataIndex += 4;
+        strip.rgbOrder = new TextDecoder().decode(data.slice(dataIndex, dataIndex + 3));
+        console.log(`rgb order: ${strip.rgbOrder}`);
+        dataIndex += 3;
+
+        setBitValues(strip.coils, 0xF0);
+        setBitValues(strip.inputs, 0x0F);
+        renderStrip.syncStripData();
+
+        stripIndex++;
     }
 
     if(isFirst) delDefText();
 }
 
-function addNewModbusDevice(deviceIndex) {
+function addNewStrip(stripIndex) {
     deviceMaxN++;
-    const modbusDevice = new ModbusDevice(deviceIndex, 8);
-    const tmpHTML = tmpModbusBox.content.cloneNode(true).firstElementChild;
-    const renderModbusDevice = new RenderModbusDevice(modbusDevice, tmpHTML);
-    renderModbusDevice.setDeviceName(deviceIndex);
+    const strip = new Strip(stripIndex, 8);
+    const tmpHTML = tmpStripBox.content.cloneNode(true).firstElementChild;
+    const renderStrip = new RenderStrip(strip, tmpHTML);
+    renderStrip.setDeviceName(stripIndex);
     document.body.appendChild(tmpHTML);
-    deviceList.push(renderModbusDevice);
-    return renderModbusDevice;
+    deviceList.push(renderStrip);
+    return renderStrip;
 }
 
 function setBitValues(boolArray, byteData) {
