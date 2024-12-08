@@ -1,7 +1,7 @@
 
 const tmpStripBox = document.getElementById("tmpStripBox");
-const tmpControlItem = document.getElementById("tmpControlItem");
 const tmpCheckBox = document.getElementById("tmpCheckBox");
+const containerBox = document.getElementById("containerBox");
 const deleteDialog = new DeleteDialog();
 const ws = new WebSocketHandler();
 const com = new MessageHandler();
@@ -44,10 +44,7 @@ function refreshStripConfig(isFirst, data) {
         strip.rgbOrder = new TextDecoder().decode(data.slice(dataIndex, dataIndex + 3));
         console.log(`rgb order: ${strip.rgbOrder}`);
         dataIndex += 3;
-
-        setBitValues(strip.coils, 0xF0);
         renderStrip.syncStripData();
-
         stripIndex++;
     }
 
@@ -60,7 +57,7 @@ function addNewStrip(stripIndex) {
     const tmpHTML = tmpStripBox.content.cloneNode(true).firstElementChild;
     const renderStrip = new RenderStrip(strip, tmpHTML);
     renderStrip.setDeviceName(stripIndex + ".");
-    document.body.appendChild(tmpHTML);
+    containerBox.appendChild(tmpHTML);
     deviceList.push(renderStrip);
     return renderStrip;
 }

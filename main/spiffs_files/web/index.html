@@ -51,6 +51,7 @@
         <div id="headerText"></div>
     </div>
     <div id="default_text">Loading...</div>
+    <div id="containerBox"></div>
     <dialog id="deleteDialog">
         <div id="deleteText">Delete?</div>
         <div class="deleteDialogButtons">
@@ -61,34 +62,32 @@
 
     <!-- TEMPLATES -->
     <template id="tmpStripBox">
-        <div class="modbusBox">
-            <div class="titleBox">
-                <div class="iconPrefixBox">
-                    <div class="clipPathIcon" style="clip-path: url(#path-tag);"></div>
-                    <b class="deviceName">add</b>
-                </div>
-                <div class="uiStripSizeBox iconPrefixBox">
-                    <div class="uiStripSize">
-                        <div>
-                            <span class="uiStripSizeText" contenteditable></span>
-                            <span class="uiStripSizePrefix">pixel</span>
+        <div class="stripBox">
+            <div class="uiControls">
+                <div class="uiBox borderBox">
+                    <div class="uiHeader">
+                        <div class="iconPrefixBox">
+                            <div class="clipPathIcon" style="clip-path: url(#path-tag);"></div>
+                            <b class="deviceName">id</b>
+                        </div>
+                        <div class="uiDeviceDelete deviceNotExist">
+                            <div class="clipPathIcon" style="clip-path: url(#path-trash);"></div>
                         </div>
                     </div>
-                    <div class="uiStripSizeSet">
-                        <div class="clipPathIcon" style="clip-path: url(#path-edit);"></div>
+                    <div class="uiBody">
+                        <div class="uiStripSizeBox iconPrefixBox">
+                            <div class="uiStripSize">
+                                <div>
+                                    <span class="uiStripSizeText" contenteditable>123</span><span class="uiStripSizePrefix"> pixel</span>
+                                </div>
+                            </div>
+                            <div class="uiStripSizeSet">
+                                <div class="clipPathIcon" style="clip-path: url(#path-edit);"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="uiDeviceDelete deviceNotExist">
-                    <div class="clipPathIcon" style="clip-path: url(#path-trash);"></div>
-                </div>
             </div>
-            <div class="uiControls"></div>
-        </div>
-    </template>
-    <template id="tmpControlItem">
-        <div class="uiBox borderBox">
-            <div class="uiHeader">text</div>
-            <div class="uiBody"></div>
         </div>
     </template>
     <template id="tmpCheckBox">

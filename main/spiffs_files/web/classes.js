@@ -4,16 +4,6 @@ class Strip {
         this.exist = false;
         this.pixelSize = pixelSize;
         this.rgbOrder = rgbOrder;
-        this.coils = [];
-        this.address = null;
-
-        for(let i = 0; i < 8; i++) {
-            this.coils[i] = false;
-        }
-    }
-
-    setCoilValue(index, val) {
-        this.coils[index] = val;
     }
 }
 
@@ -26,7 +16,7 @@ class RenderStrip {
     }
 
     setDeviceName(text) {
-        const title = this.htmlBox.getElementsByClassName("titleBox")[0];
+        const title = this.htmlBox.getElementsByClassName("uiHeader")[0];
         const deviceName = title.getElementsByClassName("deviceName")[0];
         deviceName.textContent = text;
     }
@@ -35,29 +25,24 @@ class RenderStrip {
         this.controlsUi = new RenderControlsUI(this);
         this.controlsUi.setupUI();
         this.deleteBox.onclick = () => {
-            let deviceID = this.strip.id;
-            let addressText = this.strip.address;
-            let text = `Delete device ${deviceID}?\n(address: 0x${addressText})`;
+            let text = `Delete strip ${this.strip.id}?\n(${this.strip.pixelSize} pixel)`;
             deleteDialog.show(() => this.deleteControls(), text);
         };
-        this.deleteBox.classList.remove("deviceNotExist");
     }
 
     syncStripData() {
-        this.stripSizeTyper.addressBox.textContent = this.strip.address;
-        this.controlsUi.syncControls();
+        this.stripSizeTyper.stripSizeBox.textContent = this.strip.pixelSize;
     }
 
     deleteControls() {
-        this.deleteBox.classList.add("deviceNotExist");
         this.controlsUi.controlBox.innerHTML = "";
-        this.stripSizeTyper.addressBox.textContent = "";
+        this.stripSizeTyper.stripSizeBox.textContent = "";
         this.deleteBox.onclick = null;
         this.controlsUi = null;
 
         if(this.strip.exist) {
             showHeader(`Device ${this.strip.id} deleted`, "rgb(190,30,0)", 3000);
-            this.strip.address = null;
+            this.strip.pixelSize = null;
             this.strip.exist = false;
             com.serverBound_deleteDevice(this.strip.id);
         }
@@ -73,52 +58,18 @@ class RenderControlsUI {
     }
 
     setupUI() {
-        const coilBox = tmpControlItem.content.cloneNode(true).firstElementChild;
-        this.controlBox.appendChild(coilBox);
-
-        this.addCoilsUI(coilBox);
+        const bodyBox = this.htmlBox.getElementsByClassName("uiBody")[0];
     }
 
-    addCoilsUI(coilsBox) {
-        const coilsBoxText = coilsBox.getElementsByClassName("uiHeader")[0];
-        coilsBoxText.textContent = "Coils";
-        const bodyBox = coilsBox.getElementsByClassName("uiBody")[0];
-
-        for(let i = 0; i < 8; i++) {
-            let clone = tmpCheckBox.content.cloneNode(true).firstElementChild;
-            clone.onclick = () => this.checkBoxCallback(clone, i);
-            let text = clone.getElementsByClassName("uiCheckBoxText")[0];
-            text.textContent = i;
-            bodyBox.appendChild(clone);
-        }
-    }
-
-    checkBoxCallback(box, index) {
+    checkBoxCallback(box) {
         if(box.classList.contains("deniedCheckBox")) return;
 
         if(box.classList.contains("checked")) {
-            this.strip.setCoilValue(index, false);
-            this.setCoilChecked(box, false);
-            com.serverBound_coilSetOff(this.strip.id, index);
+
         }
         else {
-            this.strip.setCoilValue(index, true);
-            this.setCoilChecked(box, true);
-            com.serverBound_coilSetOn(this.strip.id, index);
+
         }
-    }
-
-    syncControls() {
-        const checkBoxes = this.controlBox.getElementsByClassName("uiCheckBox");
-
-        for(let i = 0; i < 8; i++) {
-            this.setCoilChecked(checkBoxes[i], this.strip.coils[i]);
-        }
-    }
-
-    setCoilChecked(box, val) {
-        if(true == val) box.classList.add("checked");
-        else box.classList.remove("checked");
     }
 }
 
@@ -128,19 +79,19 @@ class StripSizeTyper {
 
     constructor(renderStrip, htmlBox) {
         this.parent = renderStrip;
-        this.addressBox = htmlBox.getElementsByClassName("uiStripSizeText")[0];
-        this.parentAddressBox = htmlBox.getElementsByClassName("uiStripSizeBox")[0];
-        this.buttonAddressSet = htmlBox.getElementsByClassName("uiStripSizeSet")[0];
-        this.addressBox.oninput = (event) => this.typeCallback(event);
-        this.addressBox.onblur = () => this.endType();
-        this.addressBox.onpaste = (event) => event.preventDefault();
-        this.parentAddressBox.onmousedown = (event) => {
+        this.stripSizeBox = htmlBox.getElementsByClassName("uiStripSizeText")[0];
+        this.parentstripSizeBox = htmlBox.getElementsByClassName("uiStripSizeBox")[0];
+        this.buttonSizeSet = htmlBox.getElementsByClassName("uiStripSizeSet")[0];
+        this.stripSizeBox.oninput = (event) => this.typeCallback(event);
+        this.stripSizeBox.onblur = () => this.endType();
+        this.stripSizeBox.onpaste = (event) => event.preventDefault();
+        this.parentstripSizeBox.onmousedown = (event) => {
             if(this.typing) event.preventDefault();
         };
-        this.parentAddressBox.onclick = (event) => {
+        this.parentstripSizeBox.onclick = (event) => {
             if(this.typing) {
                 // if edit button clicked -> force trigger focus out (blur) event
-                if(this.buttonAddressSet.contains(event.target)) {
+                if(this.buttonSizeSet.contains(event.target)) {
                     document.activeElement.blur();
                 }
             }
@@ -150,20 +101,20 @@ class StripSizeTyper {
 
     startType() {
         this.typing = true;
-        this.originalValue = this.addressBox.textContent;
-        this.addressBox.focus();
+        this.originalValue = this.stripSizeBox.textContent;
+        this.stripSizeBox.focus();
         this.typeCallback();
     }
 
     endType() {
         this.typing = false;
-        let newVal = this.addressBox.textContent;
+        let newVal = this.stripSizeBox.textContent;
 
         if(newVal != this.originalValue) {
             if(newVal.length == 0) newVal = "0";
 
-            this.addressBox.textContent = newVal.replace(this.#startZerosPattern, '');
-            this.parent.strip.address = newVal;
+            this.stripSizeBox.textContent = newVal.replace(this.#startZerosPattern, '');
+            this.parent.strip.pixelSize = newVal;
             com.serverBound_setAddress(this.parent.strip.id, parseInt(newVal, 16));
         }
     }
@@ -183,12 +134,12 @@ class StripSizeTyper {
     }
 
     check() {
-        let s = this.addressBox.textContent;
+        let s = this.stripSizeBox.textContent;
         s = s.replace(this.#hexPattern, "");
 
         if(s.length > 3) s = s.substring(1, 4);
 
-        this.addressBox.textContent = s.toUpperCase();
+        this.stripSizeBox.textContent = s.toUpperCase();
     }
 }
 
