@@ -1,7 +1,7 @@
 :root {
-    --varColorMain: rgb(42, 77, 74);
-    --varColorDark: rgb(42, 55, 52);
-    --varColorBright: rgb(82, 139, 115);
+    --varColorMain: rgb(67, 45, 74);
+    --varColorDark: rgb(42, 33, 55);
+    --varColorBright: rgb(206, 121, 185);
 }
 
 .modbusBox {
@@ -77,18 +77,19 @@
     background: var(--varColorText);
 }
 
-.uiDeviceAddressBox {
+.uiStripSizeBox {
     cursor: text;
 }
 
-.uiDeviceAddressBox * {
+.uiStripSizeBox * {
     transition: outline 300ms ease-in-out,
         background-color 300ms ease-in-out,
         filter 300ms ease-in-out,
         color 300ms ease-in-out;
 }
 
-.uiDeviceAddress {
+.uiStripSize {
+    height: 1.2em;
     display: flex;
     column-gap: 0.2em;
     padding: 0 0.2em;
@@ -98,7 +99,7 @@
     outline-color: transparent;
 }
 
-.uiDeviceAddressText {
+.uiStripSizeText {
     display: inline-block;
     background: none;
     color: inherit;
@@ -109,25 +110,30 @@
     outline: none;
     transition: min-width 300ms ease-in-out;
     min-width: 0.1em;
+    direction: rtl;
 }
 
-.uiDeviceAddressText:focus {
-    min-width: 1.3em;
+.uiStripSizePrefix {
+    vertical-align: top;
 }
 
-.uiDeviceAddress:has(.uiDeviceAddressText:focus) {
+.uiStripSizeText:focus {
+    min-width: 1.8em;
+}
+
+.uiStripSize:has(.uiStripSizeText:focus) {
     outline-color: var(--varColorText);
 }
 
-.uiDeviceAddress:has(.uiDeviceAddressText:focus) .clipPathIcon {
+.uiStripSize:has(.uiStripSizeText:focus) .clipPathIcon {
     background-color: var(--varColorBright);
 }
 
-.uiDeviceAddress:has(.uiDeviceAddressText:focus) .uiDeviceAddressPrefix {
+.uiStripSize:has(.uiStripSizeText:focus) .uiStripSizePrefix {
     color: var(--varColorBright);
 }
 
-.uiDeviceAddressBox:has(.uiDeviceAddressText:focus) .uiDeviceAddressSet {
+.uiStripSizeBox:has(.uiStripSizeText:focus) .uiStripSizeSet {
     filter: drop-shadow(0 0 0.1em rgb(255, 254, 250))
         drop-shadow(0 0 0.4em rgb(255, 254, 250))
         drop-shadow(0 0 0.8em rgb(255, 254, 250));
@@ -155,7 +161,6 @@
 }
 
 .uiCheckBoxFig {
-    line-height: 1.2em;
     width: 1.1em;
     height: 1.1em;
     border: solid .1em;
@@ -211,55 +216,12 @@
     border-color: var(--varColorDark);
 }
 
-.uiCheckBox.deniedCheckBox.checked > .uiCheckBoxFig {
-    color: var(--varColorDark);
-    background-color: none;
-}
-
 .uiCheckBox.deniedCheckBox.checked > .uiCheckBoxFig > * {
-    background-color: transparent;
+    background-color: var(--varColorDark);
 }
 
 .uiCheckBox.deniedCheckBox > .uiCheckBoxText {
     color: var(--varColorDark);
-}
-
-.LED {
-    font-size: 2em;
-    display: flex;
-    flex-flow: row nowrap;
-    align-items: center;
-    transition: filter 300ms ease-in-out;
-}
-
-.ledBulb {
-    min-width: 1.1em;
-    min-height: 1.1em;
-    border: solid .1em;
-    border-color: var(--varColorMain);
-    border-radius: 100%;
-    transition: border-color 300ms ease-in-out,
-                background-color 300ms ease-in-out;
-}
-
-.ledText {
-    color: var(--varColorMain);
-    margin: 0 .6em 0 .3em;
-    transition: color 300ms ease-in-out;
-}
-
-.LED.on {
-    filter: drop-shadow(0 0 .3em rgba(255, 254, 250, 0.4));
-}
-
-.LED.on > .ledText {
-    color: var(--varColorText);
-    text-shadow: 0 0 .6em rgb(255, 254, 250);
-}
-
-.LED.on > .ledBulb {
-    background-color: var(--varColorBright);
-    border-color: var(--varColorBright);
 }
 
 #pageHeader {

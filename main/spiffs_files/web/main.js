@@ -2,7 +2,6 @@
 const tmpStripBox = document.getElementById("tmpStripBox");
 const tmpControlItem = document.getElementById("tmpControlItem");
 const tmpCheckBox = document.getElementById("tmpCheckBox");
-const tmpLED = document.getElementById("tmpLED");
 const deleteDialog = new DeleteDialog();
 const ws = new WebSocketHandler();
 const com = new MessageHandler();
@@ -47,7 +46,6 @@ function refreshStripConfig(isFirst, data) {
         dataIndex += 3;
 
         setBitValues(strip.coils, 0xF0);
-        setBitValues(strip.inputs, 0x0F);
         renderStrip.syncStripData();
 
         stripIndex++;
@@ -61,7 +59,7 @@ function addNewStrip(stripIndex) {
     const strip = new Strip(stripIndex, 8);
     const tmpHTML = tmpStripBox.content.cloneNode(true).firstElementChild;
     const renderStrip = new RenderStrip(strip, tmpHTML);
-    renderStrip.setDeviceName(stripIndex);
+    renderStrip.setDeviceName(stripIndex + ".");
     document.body.appendChild(tmpHTML);
     deviceList.push(renderStrip);
     return renderStrip;

@@ -3,19 +3,13 @@ class Strip {
         this.id = id;
         this.exist = false;
         this.pixelSize = pixelSize;
-        this.rgbOrder = rgbOrder
-        this.inputs = [];
+        this.rgbOrder = rgbOrder;
         this.coils = [];
         this.address = null;
 
         for(let i = 0; i < 8; i++) {
-            this.inputs[i] = false;
             this.coils[i] = false;
         }
-    }
-
-    setInputValue(index, val) {
-        this.inputs[index] = val;
     }
 
     setCoilValue(index, val) {
@@ -80,12 +74,9 @@ class RenderControlsUI {
 
     setupUI() {
         const coilBox = tmpControlItem.content.cloneNode(true).firstElementChild;
-        const inputBox = tmpControlItem.content.cloneNode(true).firstElementChild;
         this.controlBox.appendChild(coilBox);
-        this.controlBox.appendChild(inputBox);
 
         this.addCoilsUI(coilBox);
-        this.addInputsUI(inputBox);
     }
 
     addCoilsUI(coilsBox) {
@@ -93,23 +84,10 @@ class RenderControlsUI {
         coilsBoxText.textContent = "Coils";
         const bodyBox = coilsBox.getElementsByClassName("uiBody")[0];
 
-        for(let i = 0; i < this.strip.pixelSize; i++) {
+        for(let i = 0; i < 8; i++) {
             let clone = tmpCheckBox.content.cloneNode(true).firstElementChild;
             clone.onclick = () => this.checkBoxCallback(clone, i);
             let text = clone.getElementsByClassName("uiCheckBoxText")[0];
-            text.textContent = i;
-            bodyBox.appendChild(clone);
-        }
-    }
-
-    addInputsUI(inputsBox) {
-        const inputsBoxText = inputsBox.getElementsByClassName("uiHeader")[0];
-        inputsBoxText.textContent = "Inputs";
-        const bodyBox = inputsBox.getElementsByClassName("uiBody")[0];
-
-        for(let i = 0; i < 8; i++) {
-            let clone = tmpLED.content.cloneNode(true).firstElementChild;
-            let text = clone.getElementsByClassName("ledText")[0];
             text.textContent = i;
             bodyBox.appendChild(clone);
         }
@@ -132,11 +110,9 @@ class RenderControlsUI {
 
     syncControls() {
         const checkBoxes = this.controlBox.getElementsByClassName("uiCheckBox");
-        const leds = this.controlBox.getElementsByClassName("LED");
 
-        for(let i = 0; i < this.strip.pixelSize; i++) {
+        for(let i = 0; i < 8; i++) {
             this.setCoilChecked(checkBoxes[i], this.strip.coils[i]);
-            this.setInputOn(leds[i], this.strip.inputs[i]);
         }
     }
 
@@ -144,21 +120,17 @@ class RenderControlsUI {
         if(true == val) box.classList.add("checked");
         else box.classList.remove("checked");
     }
-
-    setInputOn(box, val) {
-        if(true == val) box.classList.add("on");
-        else box.classList.remove("on");
-    }
 }
 
 class StripSizeTyper {
     #hexPattern = /[^0-9]+/;
+    #startZerosPattern = /\b(0(?!\b))+/g;
 
     constructor(renderStrip, htmlBox) {
         this.parent = renderStrip;
-        this.addressBox = htmlBox.getElementsByClassName("uiDeviceAddressText")[0];
-        this.parentAddressBox = htmlBox.getElementsByClassName("uiDeviceAddressBox")[0];
-        this.buttonAddressSet = htmlBox.getElementsByClassName("uiDeviceAddressSet")[0];
+        this.addressBox = htmlBox.getElementsByClassName("uiStripSizeText")[0];
+        this.parentAddressBox = htmlBox.getElementsByClassName("uiStripSizeBox")[0];
+        this.buttonAddressSet = htmlBox.getElementsByClassName("uiStripSizeSet")[0];
         this.addressBox.oninput = (event) => this.typeCallback(event);
         this.addressBox.onblur = () => this.endType();
         this.addressBox.onpaste = (event) => event.preventDefault();
@@ -188,10 +160,9 @@ class StripSizeTyper {
         let newVal = this.addressBox.textContent;
 
         if(newVal != this.originalValue) {
-            if(newVal.length == 0) newVal = "00";
-            else if(newVal.length == 1) newVal = "0" + newVal;
+            if(newVal.length == 0) newVal = "0";
 
-            this.addressBox.textContent = newVal;
+            this.addressBox.textContent = newVal.replace(this.#startZerosPattern, '');
             this.parent.strip.address = newVal;
             com.serverBound_setAddress(this.parent.strip.id, parseInt(newVal, 16));
         }
@@ -201,7 +172,7 @@ class StripSizeTyper {
         document.getSelection()
         this.check();
         let sel = document.getSelection();
-        sel.modify("move", "forward", "paragraphboundary");
+        sel.modify("move", "forward", "lineboundary");
 
         if(event) {
             // detect ENTER pressed
@@ -215,7 +186,7 @@ class StripSizeTyper {
         let s = this.addressBox.textContent;
         s = s.replace(this.#hexPattern, "");
 
-        if(s.length > 2) s = s.substring(1, 3);
+        if(s.length > 3) s = s.substring(1, 4);
 
         this.addressBox.textContent = s.toUpperCase();
     }
