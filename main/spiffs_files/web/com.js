@@ -73,22 +73,22 @@ class MessageHandler {
     }
 
     // SID 0
-    serverBound_coilSetOn(deviceN, coilN) {
-        this.tx(0, [deviceN, coilN]);
+    serverBound_coilSetOn(stripIndex, coilN) {
+        this.tx(0, [stripIndex, coilN]);
     }
 
     // SID 1
-    serverBound_coilSetOff(deviceN, coilN) {
-        this.tx(1, [deviceN, coilN]);
+    serverBound_coilSetOff(stripIndex, coilN) {
+        this.tx(1, [stripIndex, coilN]);
     }
 
     // SID 2
-    serverBound_setAddress(deviceN, busAddress) {
-        this.tx(2, [deviceN, busAddress]);
+    serverBound_setAddress(stripIndex, busAddress) {
+        this.tx(2, [stripIndex, busAddress]);
     }
 
     // SID 3
-    serverBound_deleteDevice(deviceN) {
-        this.tx(3, [deviceN]);
+    serverBound_deleteDevice(stripIndex) {
+        this.tx(3, [stripIndex]);
     }
 }

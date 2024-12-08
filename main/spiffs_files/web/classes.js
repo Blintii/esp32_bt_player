@@ -1,7 +1,6 @@
 class Strip {
     constructor(id, pixelSize, rgbOrder) {
         this.id = id;
-        this.exist = false;
         this.pixelSize = pixelSize;
         this.rgbOrder = rgbOrder;
     }
@@ -11,21 +10,21 @@ class RenderStrip {
     constructor(strip, htmlBox) {
         this.strip = strip;
         this.htmlBox = htmlBox;
-        this.deleteBox = htmlBox.getElementsByClassName("uiDeviceDelete")[0];
+        this.deleteBox = htmlBox.getElementsByClassName("uiZoneDelete")[0];
         this.stripSizeTyper = new StripSizeTyper(this, htmlBox);
     }
 
-    setDeviceName(text) {
+    setStripTitle(text) {
         const title = this.htmlBox.getElementsByClassName("uiHeader")[0];
-        const deviceName = title.getElementsByClassName("deviceName")[0];
-        deviceName.textContent = text;
+        const stripTitle = title.getElementsByClassName("stripTitle")[0];
+        stripTitle.textContent = text;
     }
 
     setupControls() {
         this.controlsUi = new RenderControlsUI(this);
         this.controlsUi.setupUI();
         this.deleteBox.onclick = () => {
-            let text = `Delete strip ${this.strip.id}?\n(${this.strip.pixelSize} pixel)`;
+            let text = `Delete zone ${this.strip.id}?\n(${this.strip.pixelSize} pixel)`;
             deleteDialog.show(() => this.deleteControls(), text);
         };
     }
@@ -40,12 +39,9 @@ class RenderStrip {
         this.deleteBox.onclick = null;
         this.controlsUi = null;
 
-        if(this.strip.exist) {
-            showHeader(`Device ${this.strip.id} deleted`, "rgb(190,30,0)", 3000);
-            this.strip.pixelSize = null;
-            this.strip.exist = false;
-            com.serverBound_deleteDevice(this.strip.id);
-        }
+        showHeader(`Strip ${this.strip.id} deleted`, "rgb(190,30,0)", 3000);
+        this.strip.pixelSize = 0;
+        com.serverBound_deleteDevice(this.strip.id);
     }
 }
 

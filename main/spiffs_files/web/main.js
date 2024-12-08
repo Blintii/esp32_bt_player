@@ -5,8 +5,8 @@ const containerBox = document.getElementById("containerBox");
 const deleteDialog = new DeleteDialog();
 const ws = new WebSocketHandler();
 const com = new MessageHandler();
-const deviceList = [];
-let deviceMaxN = 0;
+const stripList = [];
+let stripMaxIndex = 0;
 let pageHeader;
 
 window.onload = onPageLoaded;
@@ -27,15 +27,11 @@ function refreshStripConfig(isFirst, data) {
 
     while(dataIndex < (data.length)) {
         if(isFirst) renderStrip = addNewStrip(stripIndex);
-        else renderStrip = deviceList[stripIndex];
+        else renderStrip = stripList[stripIndex];
 
         strip = renderStrip.strip;
 
-        // if device not exist yet in UI, need to setup
-        if(!strip.exist) {
-            strip.exist = true
-            renderStrip.setupControls();
-        }
+        renderStrip.setupControls();
 
         // next byte is strip_n
         strip.pixelSize = dataView.getUint32(dataIndex);
@@ -52,13 +48,13 @@ function refreshStripConfig(isFirst, data) {
 }
 
 function addNewStrip(stripIndex) {
-    deviceMaxN++;
+    stripMaxIndex++;
     const strip = new Strip(stripIndex, 8);
     const tmpHTML = tmpStripBox.content.cloneNode(true).firstElementChild;
     const renderStrip = new RenderStrip(strip, tmpHTML);
-    renderStrip.setDeviceName(stripIndex + ".");
+    renderStrip.setStripTitle(stripIndex + ".");
     containerBox.appendChild(tmpHTML);
-    deviceList.push(renderStrip);
+    stripList.push(renderStrip);
     return renderStrip;
 }
 
