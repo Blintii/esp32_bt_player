@@ -52,7 +52,7 @@ function addNewStrip(stripIndex) {
     const strip = new Strip(stripIndex, 8);
     const tmpHTML = tmpStripBox.content.cloneNode(true).firstElementChild;
     const renderStrip = new RenderStrip(strip, tmpHTML);
-    renderStrip.setStripTitle(stripIndex + ".");
+    renderStrip.setStripTitle(stripIndex + ". LED szalag");
     containerBox.appendChild(tmpHTML);
     stripList.push(renderStrip);
     return renderStrip;

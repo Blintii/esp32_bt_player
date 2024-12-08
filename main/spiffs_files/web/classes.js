@@ -23,10 +23,13 @@ class RenderStrip {
     setupControls() {
         this.controlsUi = new RenderControlsUI(this);
         this.controlsUi.setupUI();
-        this.deleteBox.onclick = () => {
-            let text = `Delete zone ${this.strip.id}?\n(${this.strip.pixelSize} pixel)`;
-            deleteDialog.show(() => this.deleteControls(), text);
-        };
+
+        if(this.deleteBox) {
+            this.deleteBox.onclick = () => {
+                let text = `Delete zone ${this.strip.id}?\n(${this.strip.pixelSize} pixel)`;
+                deleteDialog.show(() => this.deleteControls(), text);
+            };
+        }
     }
 
     syncStripData() {

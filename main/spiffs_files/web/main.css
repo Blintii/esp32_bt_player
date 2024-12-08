@@ -55,7 +55,7 @@
     column-gap: 1.5em;
     justify-content: space-evenly;
     flex-basis: 100%;
-    padding: 0 14vw;
+    padding: 0 6vw;
     background: var(--varColorMain);
     margin-bottom: 0.5em;
 }
