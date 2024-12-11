@@ -55,19 +55,18 @@ class MessageHandler {
 
     // CID 1
     clientBound_zoneConfig(u8Array) {
-        console.log(`clientBound_zoneConfig: nincs lekezelve csoro CID1: ${u8Array}`)
+        throw new Error(`nincs lekezelve csoro CID1: ${u8Array}`);
     }
 
     // CID 2
     clientBound_shaderConfig(u8Array) {
-        console.log(`clientBound_shaderConfig: nincs lekezelve csoro CID2: ${u8Array}`)
+        throw new Error(`nincs lekezelve csoro CID2: ${u8Array}`);
     }
 
-    tx(serverBound_ID, dataArray) {
+    tx(packet) {
         try {
-            let packet = [serverBound_ID].concat(dataArray);
-            console.log(`kűdés van ${packet}`);
-            ws.ws.send(new Uint8Array(packet));
+            console.log(`kűdés van ${new Uint8Array(packet)}`);
+            ws.ws.send(packet);
         }
         catch(e) {
             console.error(e);
@@ -75,22 +74,33 @@ class MessageHandler {
     }
 
     // SID 0
-    serverBound_coilSetOn(stripIndex, coilN) {
-        this.tx(0, [stripIndex, coilN]);
+    serverBound_stripSet(stripIndex, pixelSize, rgbOrder) {
+        /* SID + stripIndex + pixelSize (uint32) + rgbOrder (3 char) */
+        let len = 1 + 1 + 4 + 3;
+        let buf = new ArrayBuffer(len);
+        let dataView = new DataView(buf);
+        dataView.setUint8(0, 0);
+        dataView.setUint8(1, stripIndex);
+        dataView.setUint32(2, pixelSize);
+        new Uint8Array(buf, 6, 3).set(new TextEncoder().encode(rgbOrder));
+        this.tx(buf);
     }
 
     // SID 1
-    serverBound_coilSetOff(stripIndex, coilN) {
-        this.tx(1, [stripIndex, coilN]);
+    serverBound_zoneSet(stripIndex, zoneIndex, pixelSize) {
+        /* SID + stripIndex + zoneIndex + pixelSize (uint32) */
+        let len = 1 + 1 + 1 + 4;
+        let buf = new ArrayBuffer(len);
+        let dataView = new DataView(buf);
+        dataView.setUint8(0, 1);
+        dataView.setUint8(1, stripIndex);
+        dataView.setUint8(2, zoneIndex);
+        dataView.setUint32(3, pixelSize);
+        this.tx(buf);
     }
 
     // SID 2
-    serverBound_setAddress(stripIndex, busAddress) {
-        this.tx(2, [stripIndex, busAddress]);
-    }
-
-    // SID 3
-    serverBound_deleteDevice(stripIndex) {
-        this.tx(3, [stripIndex]);
+    serverBound_shaderSet(stripIndex, zoneIndex) {
+        this.tx(2, [stripIndex, zoneIndex]);
     }
 }

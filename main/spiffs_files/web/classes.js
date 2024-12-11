@@ -18,9 +18,22 @@ class RenderStrip {
         this.strip = strip;
         this.htmlBox = htmlBox;
         this.deleteBox = htmlBox.getElementsByClassName("uiZoneDelete")[0];
-        this.stripSizeTyper = new WriteTyper(htmlBox, /[^0-9]+/, newVal => {
+        let writeTyperBox = htmlBox.getElementsByClassName("stripSizeBox")[0];
+        this.stripSizeTyper = new WriteTyper(writeTyperBox, /[^0-9]+/, 3, newVal => {
             this.strip.pixelSize = parseInt(newVal, 10);
-            com.serverBound_setAddress(this.strip.id, this.strip.pixelSize);
+            com.serverBound_stripSet(this.strip.id, this.strip.pixelSize, this.strip.rgbOrder);
+        });
+        let rgbOrderBox = htmlBox.getElementsByClassName("RGBOrderBox")[0];
+        this.rgbOrderTyper = new WriteTyper(rgbOrderBox, /[^RGBrgb]+/, 3, newVal => {
+            if(!(newVal.includes('R') && newVal.includes('G') && newVal.includes('B'))) {
+                newVal = "RGB";
+                this.rgbOrderTyper.textBox.textContent = newVal;
+            }
+
+            if(newVal != this.strip.rgbOrder) {
+                this.strip.rgbOrder = newVal
+                com.serverBound_stripSet(this.strip.id, this.strip.pixelSize, this.strip.rgbOrder);
+            }
         });
     }
 
@@ -44,6 +57,7 @@ class RenderStrip {
 
     syncStripData() {
         this.stripSizeTyper.textBox.textContent = this.strip.pixelSize;
+        this.rgbOrderTyper.textBox.textContent = this.strip.rgbOrder;
     }
 
     deleteControls() {
@@ -85,10 +99,12 @@ class RenderControls {
 class WriteTyper {
     #startZerosPattern = /\b(0(?!\b))+/g;
 
-    constructor(htmlBox, checkPattern, onDone) {
+    constructor(parentBox, checkPattern, maxCharLen, onDone) {
+        this.parentBox = parentBox;
         this.checkPattern = checkPattern;
+        this.maxCharLen = maxCharLen;
         this.onDone = onDone;
-        this.textBox = htmlBox.getElementsByClassName("uiWriteTyperText")[0];
+        this.textBox = parentBox.getElementsByClassName("uiWriteTyperText")[0];
         this.textBox.onblur = () => this.endType();
         this.textBox.onpaste = (event) => event.preventDefault();
         this.textBox.oninput = (event) => {
@@ -99,12 +115,11 @@ class WriteTyper {
             }
             else this.setCaretPosition();
         };
-        this.buttonSet = htmlBox.getElementsByClassName("uiWriteTyperSet")[0];
-        this.parentTextBox = htmlBox.getElementsByClassName("uiWriteTyperBox")[0];
-        this.parentTextBox.onmousedown = (event) => {
+        this.buttonSet = parentBox.getElementsByClassName("uiWriteTyperSet")[0];
+        this.parentBox.onmousedown = (event) => {
             if(this.typing) event.preventDefault();
         };
-        this.parentTextBox.onclick = (event) => {
+        this.parentBox.onclick = (event) => {
             if(this.typing) {
                 // if edit button clicked -> force trigger focus out (blur) event
                 if(this.buttonSet.contains(event.target)) {
@@ -144,7 +159,7 @@ class WriteTyper {
         let s = this.textBox.textContent;
         s = s.replace(this.checkPattern, "");
 
-        if(s.length > 3) s = s.substring(1, 4);
+        if(s.length > this.maxCharLen) s = s.substring(1, this.maxCharLen + 1);
 
         this.textBox.textContent = s.toUpperCase();
     }
