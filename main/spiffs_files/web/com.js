@@ -49,6 +49,7 @@ class MessageHandler {
     // CID 0
     clientBound_stripConfig(u8Array) {
         refreshStripConfig(this.isFirst, u8Array);
+
         if(this.isFirst) this.isFirst = false;
     }
 
@@ -65,6 +66,7 @@ class MessageHandler {
     tx(serverBound_ID, dataArray) {
         try {
             let packet = [serverBound_ID].concat(dataArray);
+            console.log(`kűdés van ${packet}`);
             ws.ws.send(new Uint8Array(packet));
         }
         catch(e) {

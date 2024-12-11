@@ -3,6 +3,13 @@ class Strip {
         this.id = id;
         this.pixelSize = pixelSize;
         this.rgbOrder = rgbOrder;
+        this.zones = []
+    }
+}
+
+class Zone {
+    constructor(strip) {
+        this.strip = strip
     }
 }
 
@@ -11,7 +18,10 @@ class RenderStrip {
         this.strip = strip;
         this.htmlBox = htmlBox;
         this.deleteBox = htmlBox.getElementsByClassName("uiZoneDelete")[0];
-        this.stripSizeTyper = new StripSizeTyper(this, htmlBox);
+        this.stripSizeTyper = new WriteTyper(htmlBox, /[^0-9]+/, newVal => {
+            this.strip.pixelSize = parseInt(newVal, 10);
+            com.serverBound_setAddress(this.strip.id, this.strip.pixelSize);
+        });
     }
 
     setStripTitle(text) {
@@ -21,7 +31,7 @@ class RenderStrip {
     }
 
     setupControls() {
-        this.controlsUi = new RenderControlsUI(this);
+        this.controlsUi = new RenderControls(this);
         this.controlsUi.setupUI();
 
         if(this.deleteBox) {
@@ -33,12 +43,12 @@ class RenderStrip {
     }
 
     syncStripData() {
-        this.stripSizeTyper.stripSizeBox.textContent = this.strip.pixelSize;
+        this.stripSizeTyper.textBox.textContent = this.strip.pixelSize;
     }
 
     deleteControls() {
         this.controlsUi.controlBox.innerHTML = "";
-        this.stripSizeTyper.stripSizeBox.textContent = "";
+        this.stripSizeTyper.textBox.textContent = "";
         this.deleteBox.onclick = null;
         this.controlsUi = null;
 
@@ -48,7 +58,7 @@ class RenderStrip {
     }
 }
 
-class RenderControlsUI {
+class RenderControls {
     constructor(renderStrip) {
         this.parent = renderStrip;
         this.strip = renderStrip.strip;
@@ -72,25 +82,32 @@ class RenderControlsUI {
     }
 }
 
-class StripSizeTyper {
-    #hexPattern = /[^0-9]+/;
+class WriteTyper {
     #startZerosPattern = /\b(0(?!\b))+/g;
 
-    constructor(renderStrip, htmlBox) {
-        this.parent = renderStrip;
-        this.stripSizeBox = htmlBox.getElementsByClassName("uiStripSizeText")[0];
-        this.parentstripSizeBox = htmlBox.getElementsByClassName("uiStripSizeBox")[0];
-        this.buttonSizeSet = htmlBox.getElementsByClassName("uiStripSizeSet")[0];
-        this.stripSizeBox.oninput = (event) => this.typeCallback(event);
-        this.stripSizeBox.onblur = () => this.endType();
-        this.stripSizeBox.onpaste = (event) => event.preventDefault();
-        this.parentstripSizeBox.onmousedown = (event) => {
+    constructor(htmlBox, checkPattern, onDone) {
+        this.checkPattern = checkPattern;
+        this.onDone = onDone;
+        this.textBox = htmlBox.getElementsByClassName("uiWriteTyperText")[0];
+        this.textBox.onblur = () => this.endType();
+        this.textBox.onpaste = (event) => event.preventDefault();
+        this.textBox.oninput = (event) => {
+            this.check();
+            // detect ENTER pressed
+            if(event.inputType == "insertParagraph" && event.data == null) {
+                document.activeElement.blur();
+            }
+            else this.setCaretPosition();
+        };
+        this.buttonSet = htmlBox.getElementsByClassName("uiWriteTyperSet")[0];
+        this.parentTextBox = htmlBox.getElementsByClassName("uiWriteTyperBox")[0];
+        this.parentTextBox.onmousedown = (event) => {
             if(this.typing) event.preventDefault();
         };
-        this.parentstripSizeBox.onclick = (event) => {
+        this.parentTextBox.onclick = (event) => {
             if(this.typing) {
                 // if edit button clicked -> force trigger focus out (blur) event
-                if(this.buttonSizeSet.contains(event.target)) {
+                if(this.buttonSet.contains(event.target)) {
                     document.activeElement.blur();
                 }
             }
@@ -100,45 +117,36 @@ class StripSizeTyper {
 
     startType() {
         this.typing = true;
-        this.originalValue = this.stripSizeBox.textContent;
-        this.stripSizeBox.focus();
-        this.typeCallback();
+        this.originalValue = this.textBox.textContent;
+        this.textBox.focus();
+        this.check();
+        this.setCaretPosition();
     }
 
     endType() {
         this.typing = false;
-        let newVal = this.stripSizeBox.textContent;
+        let newVal = this.textBox.textContent;
 
-        if(newVal != this.originalValue) {
-            if(newVal.length == 0) newVal = "0";
+        if(newVal.length == 0) newVal = "0";
+        else newVal = newVal.replace(this.#startZerosPattern, '');
 
-            this.stripSizeBox.textContent = newVal.replace(this.#startZerosPattern, '');
-            this.parent.strip.pixelSize = newVal;
-            com.serverBound_setAddress(this.parent.strip.id, parseInt(newVal, 16));
-        }
+        this.textBox.textContent = newVal;
+
+        if(newVal != this.originalValue) this.onDone(newVal);
     }
 
-    typeCallback(event) {
-        document.getSelection()
-        this.check();
+    setCaretPosition() {
         let sel = document.getSelection();
         sel.modify("move", "forward", "lineboundary");
-
-        if(event) {
-            // detect ENTER pressed
-            if(event.inputType == "insertParagraph" && event.data == null) {
-                document.activeElement.blur();
-            }
-        }
     }
 
     check() {
-        let s = this.stripSizeBox.textContent;
-        s = s.replace(this.#hexPattern, "");
+        let s = this.textBox.textContent;
+        s = s.replace(this.checkPattern, "");
 
         if(s.length > 3) s = s.substring(1, 4);
 
-        this.stripSizeBox.textContent = s.toUpperCase();
+        this.textBox.textContent = s.toUpperCase();
     }
 }
 

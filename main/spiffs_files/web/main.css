@@ -75,11 +75,11 @@
     background: var(--varColorText);
 }
 
-.uiStripSizeBox {
+.uiWriteTyperBox {
     cursor: text;
 }
 
-.uiStripSizeBox * {
+.uiWriteTyperBox * {
     transition: outline 300ms ease-in-out,
         background-color 300ms ease-in-out,
         filter 300ms ease-in-out,
@@ -97,7 +97,7 @@
     outline-color: transparent;
 }
 
-.uiStripSizeText {
+.uiWriteTyperText {
     display: inline-block;
     background: none;
     color: inherit;
@@ -107,30 +107,30 @@
     outline: none;
     transition: min-width 300ms ease-in-out;
     min-width: 0.1em;
-    direction: rtl;
+    text-align: right;
 }
 
 .uiStripSizePrefix {
     vertical-align: top;
 }
 
-.uiStripSizeText:focus {
+.uiWriteTyperText:focus {
     min-width: 1.8em;
 }
 
-.uiStripSize:has(.uiStripSizeText:focus) {
+.uiStripSize:has(.uiWriteTyperText:focus) {
     outline-color: var(--varColorText);
 }
 
-.uiStripSize:has(.uiStripSizeText:focus) .clipPathIcon {
+.uiStripSize:has(.uiWriteTyperText:focus) .clipPathIcon {
     background-color: var(--varColorBright);
 }
 
-.uiStripSize:has(.uiStripSizeText:focus) .uiStripSizePrefix {
+.uiStripSize:has(.uiWriteTyperText:focus) .uiStripSizePrefix {
     color: var(--varColorBright);
 }
 
-.uiStripSizeBox:has(.uiStripSizeText:focus) .uiStripSizeSet {
+.uiWriteTyperBox:has(.uiWriteTyperText:focus) .uiWriteTyperSet {
     filter: drop-shadow(0 0 0.1em rgb(255, 254, 250))
         drop-shadow(0 0 0.4em rgb(255, 254, 250))
         drop-shadow(0 0 0.8em rgb(255, 254, 250));
