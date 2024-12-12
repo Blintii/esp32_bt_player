@@ -1,5 +1,5 @@
 :root {
-    --varColorMain: rgb(67, 45, 74);
+    --varColorMain: rgb(75, 60, 87);
     --varColorDark: rgb(42, 33, 55);
     --varColorBright: rgb(206, 121, 185);
 }
@@ -15,7 +15,7 @@
     display: flex;
     flex-flow: row wrap;
     justify-content: center;
-    align-items: center;
+    align-items: stretch;
 }
 
 .borderBox {
@@ -26,7 +26,7 @@
 
 .uiControls {
     margin: 1em 1em 3em 1em;
-    min-width: 19em;
+    min-width: 21em;
     flex-grow: 1;
     filter: drop-shadow(0 0 1.5em rgba(0, 0, 0, 0.4));
 }
@@ -51,18 +51,33 @@
 }
 
 .uiHeader {
-    font-size: 2em;
     display: flex;
     flex-flow: row wrap;
     column-gap: 1.5em;
-    justify-content: space-evenly;
-    flex-basis: 100%;
     background: var(--varColorMain);
     margin-bottom: 0.5em;
+    align-items: center;
 }
 
 .uiHeader > * {
     padding: 0.1em;
+}
+
+.uiHeaderStrip {
+    font-size: 1.7em;
+    padding: 0.25em;
+    justify-content: space-evenly;
+}
+
+.uiHeaderZone {
+    font-size: 1.5em;
+    padding: 0.2em 0.7em;
+    border-radius: 0.4em;
+    justify-content: space-between;
+}
+
+.uiZoneNew {
+    cursor: pointer;
 }
 
 .iconPrefixBox {
@@ -87,7 +102,7 @@
         color 300ms ease-in-out;
 }
 
-.uiStripSize {
+.uiWriteTyperFrame {
     height: 1.2em;
     display: flex;
     column-gap: 0.2em;
@@ -111,7 +126,7 @@
     text-align: right;
 }
 
-.uiStripSizePrefix {
+.uiWriteTyperPrefix {
     vertical-align: top;
 }
 
@@ -119,15 +134,15 @@
     min-width: 1.8em;
 }
 
-.uiStripSize:has(.uiWriteTyperText:focus) {
+.uiWriteTyperFrame:has(.uiWriteTyperText:focus) {
     outline-color: var(--varColorText);
 }
 
-.uiStripSize:has(.uiWriteTyperText:focus) .clipPathIcon {
+.uiWriteTyperFrame:has(.uiWriteTyperText:focus) .clipPathIcon {
     background-color: var(--varColorBright);
 }
 
-.uiStripSize:has(.uiWriteTyperText:focus) .uiStripSizePrefix {
+.uiWriteTyperFrame:has(.uiWriteTyperText:focus) .uiWriteTyperPrefix {
     color: var(--varColorBright);
 }
 
@@ -302,7 +317,7 @@
     border-color: rgb(255, 20, 10);
 }
 
-@media (max-width: 44.8em) {
+@media (max-width: 49.5em) {
     .stripBox {
         flex-grow: 0.4;
     }

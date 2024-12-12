@@ -1,5 +1,7 @@
 
 const tmpStripBox = document.getElementById("tmpStripBox");
+const tmpZoneBox = document.getElementById("tmpZoneBox");
+const tmpZoneNewBox = document.getElementById("tmpZoneNewBox");
 const tmpCheckBox = document.getElementById("tmpCheckBox");
 const containerBox = document.getElementById("containerBox");
 const deleteDialog = new DeleteDialog();
@@ -31,8 +33,6 @@ function refreshStripConfig(isFirst, data) {
 
         strip = renderStrip.strip;
 
-        renderStrip.setupControls();
-
         // next byte is strip_n
         strip.pixelSize = dataView.getUint32(dataIndex);
         console.log(`pixel size: ${strip.pixelSize}`);
@@ -41,6 +41,7 @@ function refreshStripConfig(isFirst, data) {
         console.log(`rgb order: ${strip.rgbOrder}`);
         dataIndex += 3;
         renderStrip.syncStripData();
+        renderStrip.checkRemainPlace();
         stripIndex++;
     }
 
@@ -49,10 +50,9 @@ function refreshStripConfig(isFirst, data) {
 
 function addNewStrip(stripIndex) {
     stripMaxIndex++;
-    const strip = new Strip(stripIndex, 8);
+    const strip = new Strip(stripIndex);
     const tmpHTML = tmpStripBox.content.cloneNode(true).firstElementChild;
     const renderStrip = new RenderStrip(strip, tmpHTML);
-    renderStrip.setStripTitle(stripIndex + ". LED szalag");
     containerBox.appendChild(tmpHTML);
     stripList.push(renderStrip);
     return renderStrip;

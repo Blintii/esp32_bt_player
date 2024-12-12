@@ -63,29 +63,23 @@
     <!-- TEMPLATES -->
     <template id="tmpStripBox">
         <div class="stripBox">
-            <div class="uiControls">
-                <div class="uiBox borderBox">
-                    <div class="uiHeader">
-                        <div class="iconPrefixBox">
-                            <b class="stripTitle">id</b>
-                        </div>
+            <div class="uiControls uiBox borderBox">
+                <div class="stripConfig">
+                    <div class="uiHeader uiHeaderStrip">
+                        <b class="stripTitle">id</b>
                     </div>
                     <div class="uiBody">
                         <div class="RGBOrderBox uiWriteTyperBox iconPrefixBox">
-                            <div class="uiStripSize">
-                                <div>
-                                    <span class="uiWriteTyperText" contenteditable>RGB</span>
-                                </div>
+                            <div class="uiWriteTyperFrame">
+                                <span class="uiWriteTyperText" contenteditable>RGB</span>
                             </div>
                             <div class="uiWriteTyperSet">
                                 <div class="clipPathIcon" style="clip-path: url(#path-edit);"></div>
                             </div>
                         </div>
                         <div class="stripSizeBox uiWriteTyperBox iconPrefixBox">
-                            <div class="uiStripSize">
-                                <div>
-                                    <span class="uiWriteTyperText" contenteditable>0</span><span class="uiStripSizePrefix"> pixel</span>
-                                </div>
+                            <div class="uiWriteTyperFrame">
+                                <span class="uiWriteTyperText" contenteditable>0</span><span class="uiWriteTyperPrefix"> pixel</span>
                             </div>
                             <div class="uiWriteTyperSet">
                                 <div class="clipPathIcon" style="clip-path: url(#path-edit);"></div>
@@ -96,25 +90,40 @@
             </div>
         </div>
     </template>
-    <template id="tmpZone">
-        <div class="uiHeader">
+    <template id="tmpZoneNewBox">
+        <div class="uiZoneNew uiHeaderZone uiHeader">
             <div class="iconPrefixBox">
                 <div class="clipPathIcon" style="clip-path: url(#path-tag);"></div>
-                <b class="zoneTitle">id</b>
+                <span class="zoneTitle">új zóna</span>
             </div>
-            <div class="uiZoneDelete">
-                <div class="clipPathIcon" style="clip-path: url(#path-trash);"></div>
-            </div>
+            <div>🞣</div>
         </div>
-        <div class="uiBody">
-            <div class="uiZoneSizeBox iconPrefixBox">
-                <div class="uiZoneSize">
-                    <div>
-                        <span class="uiZoneSizeText" contenteditable>123</span><span class="uiZoneSizePrefix"> pixel</span>
-                    </div>
+    </template>
+    <template id="tmpZoneBox">
+        <div class="zoneConfig">
+            <div class="uiHeaderZone uiHeader">
+                <div class="iconPrefixBox">
+                    <div class="clipPathIcon" style="clip-path: url(#path-tag);"></div>
+                    <span class="zoneTitle">id</span>
                 </div>
-                <div class="uiZoneSizeSet">
-                    <div class="clipPathIcon" style="clip-path: url(#path-edit);"></div>
+                <div class="uiZoneDelete">
+                    <div class="clipPathIcon" style="clip-path: url(#path-trash);"></div>
+                </div>
+            </div>
+            <div class="uiBody">
+                <select>
+                    <option value="0">egyszínű</option>
+                    <option value="1">ismétlődő</option>
+                    <option value="2">színátmenet</option>
+                    <option value="3">spektrum</option>
+                </select>
+                <div class="zoneSizeBox uiWriteTyperBox iconPrefixBox">
+                    <div class="uiWriteTyperFrame">
+                        <span class="uiWriteTyperText" contenteditable>0</span><span class="uiWriteTyperPrefix"> pixel</span>
+                    </div>
+                    <div class="uiWriteTyperSet">
+                        <div class="clipPathIcon" style="clip-path: url(#path-edit);"></div>
+                    </div>
                 </div>
             </div>
         </div>
