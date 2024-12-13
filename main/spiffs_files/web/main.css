@@ -4,6 +4,19 @@
     --varColorBright: rgb(206, 121, 185);
 }
 
+option {
+    background-color: var(--varColorDark);
+    color: var(--varColorText);
+}
+
+option:hover {
+    background-color: var(--varColorMain);
+}
+
+option:checked {
+    background-color: var(--varColorBright);
+}
+
 #containerBox {
     display: flex;
     flex-flow: wrap;
@@ -226,6 +239,14 @@
 
 .uiCheckBox.deniedCheckBox > .uiCheckBoxText {
     color: var(--varColorDark);
+}
+
+.zoneType {
+    background-color: transparent;
+    color: var(--varColorText);
+    min-width: 10em;
+    border-radius: 0.8em;
+    outline: none;
 }
 
 #pageHeader {

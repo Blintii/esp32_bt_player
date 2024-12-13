@@ -76,7 +76,7 @@ class RenderStrip {
         this.rgbOrderTyper.textBox.textContent = this.strip.rgbOrder;
     }
 
-    checkRemainPlace() {
+    checkCanShowCreate() {
         if(this.strip.pixelUsedPos < this.strip.pixelSize) {
             if(this.newZoneHidden) {
                 this.newZoneHidden = false;
@@ -86,6 +86,17 @@ class RenderStrip {
         else if(!this.newZoneHidden) {
             this.newZoneHidden = true;
             this.uiControlsBox.removeChild(this.uiZoneNewBox);
+        }
+
+        if(0 < this.renderZones.length) {
+            let i = 0;
+
+            while(i < this.renderZones.length - 1) {
+                this.renderZones[i].htmlBox.getElementsByClassName("uiZoneDelete")[0].hidden = true;
+                i++;
+            }
+
+            this.renderZones[i].htmlBox.getElementsByClassName("uiZoneDelete")[0].hidden = false;
         }
     }
 
@@ -104,7 +115,7 @@ class RenderStrip {
     onSizeTyperDone(newVal) {
         this.strip.pixelSize = newVal;
         com.serverBound_stripSet(this.strip.id, this.strip.pixelSize, this.strip.rgbOrder);
-        this.checkRemainPlace();
+        this.checkCanShowCreate();
     }
 
     onRgbOrderTyperCheck(newVal) {
@@ -129,13 +140,13 @@ class RenderStrip {
         let zone = new RenderZone(this.strip.createZone(), zoneHtmlBox, this);
         this.renderZones.push(zone);
         zone.syncZoneData();
-        this.checkRemainPlace();
+        this.checkCanShowCreate();
     }
 
     deleteRenderZone() {
         this.renderZones.pop();
         this.strip.deleteZone();
-        this.checkRemainPlace();
+        this.checkCanShowCreate();
     }
 }
 
@@ -182,14 +193,14 @@ class RenderZone {
     onSizeTyperDone(newVal) {
         this.zone.setPixelSize(newVal);
         com.serverBound_zoneSet(this.zone.strip.id, this.zone.id, this.zone.pixelSize);
-        this.renderStrip.checkRemainPlace();
+        this.renderStrip.checkCanShowCreate();
     }
 
     onDelete() {
-        let text = `${this.zone.id}. zóna törlése?\n(${this.zone.pixelSize} pixel)`;
+        let text = `${this.zone.strip.id}/${this.zone.id}. zóna törlése?\n(${this.zone.pixelSize} pixel)`;
         deleteDialog.show(() => {
             this.deleteBox.onclick = null;
-            showHeader(`Zóna ${this.zone.id} törölve`, "rgb(190,30,0)", 3000);
+            showHeader(`${this.zone.strip.id}/${this.zone.id}. zóna törölve`, "rgb(190,30,0)", 3000);
             this.renderStrip.deleteRenderZone();
             this.htmlBox.remove();
         }, text);

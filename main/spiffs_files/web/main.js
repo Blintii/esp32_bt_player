@@ -41,7 +41,7 @@ function refreshStripConfig(isFirst, data) {
         console.log(`rgb order: ${strip.rgbOrder}`);
         dataIndex += 3;
         renderStrip.syncStripData();
-        renderStrip.checkRemainPlace();
+        renderStrip.checkCanShowCreate();
         stripIndex++;
     }
 
