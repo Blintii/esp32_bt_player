@@ -29,7 +29,7 @@ A firmware-t JTAG debugger hiányában nem lehet sorról sorra debugolni, viszon
 ## Alkalmazás
 ### Architektúra
 
-<img src="img/audioreact_main_arch.drawio.svg" style="background-color: #FFFFFF;">
+<img src="img/audioreact_main_arch.drawio.svg">
 
 <br />
 
@@ -53,7 +53,7 @@ A fentebbi diagramon látható szoftver komponensekre lehet tagolni az alkalmaz�
 
 ### Adatáramlás folyamata
 
-<img src=img/audioreact_dataflow.drawio.svg  style="background-color: #FFFFFF;">
+<img src=img/audioreact_dataflow.drawio.svg >
 
 <br />
 
@@ -79,7 +79,7 @@ Eddig az egymást követő nagyon gyors üzenetváltásokat lebonyolító taskok
 
 Az eddig ismertetett üzenetek küldésének az időben egymás után szemléltetésére az alábbi szekvencia diagram mutatja be ezeket a széttagolt komponensek (avagy taskok) között:
 
-<img src=img/sequence_diagram.drawio.svg style="background-color: #FFFFFF;">
+<img src=img/sequence_diagram.drawio.svg>
 
 <br />
 
