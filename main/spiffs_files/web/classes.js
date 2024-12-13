@@ -51,9 +51,13 @@ class RenderStrip {
         this.strip = strip;
         this.htmlBox = htmlBox;
         let stripSizeBox = htmlBox.getElementsByClassName("stripSizeBox")[0];
-        this.stripSizeTyper = new WriteTyper(stripSizeBox, regexNumbers, 3, newVal => this.onSizeTyperDone(newVal));
+        this.stripSizeTyper = new WriteTyper(stripSizeBox, regexNumbers, 3);
+        this.stripSizeTyper.onChanged = newVal => this.onSizeTyperDone(newVal);
+        this.stripSizeTyper.onFinalCheck = newVal => this.onSizeTyperCheck(newVal);
         let rgbOrderBox = htmlBox.getElementsByClassName("RGBOrderBox")[0];
-        this.rgbOrderTyper = new WriteTyper(rgbOrderBox, regexRGB, 3, newVal => this.onRgbOrderTyperDone(newVal));
+        this.rgbOrderTyper = new WriteTyper(rgbOrderBox, regexRGB, 3);
+        this.rgbOrderTyper.onChanged = newVal => this.onRgbOrderTyperDone(newVal);
+        this.rgbOrderTyper.onFinalCheck = newVal => this.onRgbOrderTyperCheck(newVal);
         this.newZoneHidden = true;
         this.uiControlsBox = htmlBox.getElementsByClassName("uiControls")[0];
         this.uiZoneNewBox = tmpZoneNewBox.content.cloneNode(true).firstElementChild;
@@ -85,33 +89,35 @@ class RenderStrip {
         }
     }
 
-    onSizeTyperDone(newVal) {
-        let size = parseInt(newVal, 10);
+    onSizeTyperCheck(newVal) {
+        if(newVal.length == 0) newVal = "0";
 
-        if(size < this.strip.pixelUsedPos) {
-            size = this.strip.pixelUsedPos;
+        let newSize = parseInt(newVal, 10);
+
+        if(newSize < this.strip.pixelUsedPos) {
+            newSize = this.strip.pixelUsedPos;
         }
 
-        if(this.strip.pixelSize != size) {
-            this.strip.pixelSize = size;
-            com.serverBound_stripSet(this.strip.id, this.strip.pixelSize, this.strip.rgbOrder);
-            this.checkRemainPlace();
-        }
-
-        return size;
+        return newSize;
     }
 
-    onRgbOrderTyperDone(newVal) {
+    onSizeTyperDone(newVal) {
+        this.strip.pixelSize = newVal;
+        com.serverBound_stripSet(this.strip.id, this.strip.pixelSize, this.strip.rgbOrder);
+        this.checkRemainPlace();
+    }
+
+    onRgbOrderTyperCheck(newVal) {
         if(!(newVal.includes('R') && newVal.includes('G') && newVal.includes('B'))) {
             newVal = "RGB";
         }
 
-        if(newVal != this.strip.rgbOrder) {
-            this.strip.rgbOrder = newVal
-            com.serverBound_stripSet(this.strip.id, this.strip.pixelSize, this.strip.rgbOrder);
-        }
-
         return newVal;
+    }
+
+    onRgbOrderTyperDone(newVal) {
+        this.strip.rgbOrder = newVal
+        com.serverBound_stripSet(this.strip.id, this.strip.pixelSize, this.strip.rgbOrder);
     }
 
     createRenderZone() {
@@ -139,7 +145,9 @@ class RenderZone {
         this.htmlBox = htmlBox;
         this.renderStrip = renderStrip;
         let zoneSizeBox = htmlBox.getElementsByClassName("zoneSizeBox")[0];
-        this.zoneSizeTyper = new WriteTyper(zoneSizeBox, regexNumbers, 3, newVal => this.onSizeTyperDone(newVal));
+        this.zoneSizeTyper = new WriteTyper(zoneSizeBox, regexNumbers, 3);
+        this.zoneSizeTyper.onChanged = newVal => this.onSizeTyperDone(newVal);
+        this.zoneSizeTyper.onFinalCheck = newVal => this.onSizeTyperCheck(newVal);
         this.deleteBox = htmlBox.getElementsByClassName("uiZoneDelete")[0];
         this.deleteBox.onclick = () => this.onDelete();
         this.setZoneTitle(`${this.zone.id}. zóna`);
@@ -154,26 +162,31 @@ class RenderZone {
         this.zoneSizeTyper.textBox.textContent = this.zone.pixelSize;
     }
 
-    onSizeTyperDone(newVal) {
-        if(0 < newVal) {
-            let newSize = parseInt(newVal, 10);
-            let maxAllowed = this.zone.strip.pixelUsedPos - this.zone.pixelSize;
+    onSizeTyperCheck(newVal) {
+        if(newVal.length == 0) newVal = "0";
+
+        let newSize = parseInt(newVal, 10);
+
+        if(0 < newSize) {
+            let strip = this.zone.strip;
+            let maxAllowed = strip.pixelSize - strip.pixelUsedPos + this.zone.pixelSize;
+            console.log(`${maxAllowed}`)
 
             if(maxAllowed < newSize) newSize = maxAllowed;
-
-            if(newSize != this.zone.pixelSize) {
-                this.zone.setPixelSize();
-                com.serverBound_zoneSet(this.zone.strip.id, this.zone.id, this.zone.pixelSize);
-                this.renderStrip.checkRemainPlace();
-            }
-
-            return newSize;
         }
-        else return 1;
+        else newSize = 1;
+
+        return newSize;
+    }
+
+    onSizeTyperDone(newVal) {
+        this.zone.setPixelSize(newVal);
+        com.serverBound_zoneSet(this.zone.strip.id, this.zone.id, this.zone.pixelSize);
+        this.renderStrip.checkRemainPlace();
     }
 
     onDelete() {
-        let text = `${this.zone.id} zóna törlése?\n(${this.zone.pixelSize} pixel)`;
+        let text = `${this.zone.id}. zóna törlése?\n(${this.zone.pixelSize} pixel)`;
         deleteDialog.show(() => {
             this.deleteBox.onclick = null;
             showHeader(`Zóna ${this.zone.id} törölve`, "rgb(190,30,0)", 3000);
@@ -184,13 +197,10 @@ class RenderZone {
 }
 
 class WriteTyper {
-    #startZerosPattern = /\b(0(?!\b))+/g;
-
-    constructor(parentBox, checkPattern, maxCharLen, onDone) {
+    constructor(parentBox, checkPattern, maxCharLen) {
         this.parentBox = parentBox;
         this.checkPattern = checkPattern;
         this.maxCharLen = maxCharLen;
-        this.onDone = onDone;
         this.textBox = parentBox.getElementsByClassName("uiWriteTyperText")[0];
         this.textBox.onblur = () => this.endType();
         this.textBox.onpaste = (event) => event.preventDefault();
@@ -229,13 +239,12 @@ class WriteTyper {
         this.typing = false;
         let newVal = this.textBox.textContent;
 
-        if(newVal.length == 0) newVal = "0";
-        else newVal = newVal.replace(this.#startZerosPattern, '');
+        if(this.onFinalCheck) newVal = this.onFinalCheck(newVal);
 
         this.textBox.textContent = newVal;
 
         if(newVal != this.originalValue) {
-            this.textBox.textContent = this.onDone(newVal);
+            if(this.onChanged) this.onChanged(newVal);
         }
     }
 
