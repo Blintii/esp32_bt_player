@@ -162,6 +162,8 @@ class RenderZone {
         this.deleteBox = htmlBox.getElementsByClassName("uiZoneDelete")[0];
         this.deleteBox.onclick = () => this.onDelete();
         this.setZoneTitle(`${this.zone.id}. zóna`);
+        this.zoneType = htmlBox.getElementsByClassName("zoneType")[0];
+        this.zoneType.onchange = () => console.log(this.zoneType.value);
     }
 
     setZoneTitle(text) {
@@ -181,7 +183,6 @@ class RenderZone {
         if(0 < newSize) {
             let strip = this.zone.strip;
             let maxAllowed = strip.pixelSize - strip.pixelUsedPos + this.zone.pixelSize;
-            console.log(`${maxAllowed}`)
 
             if(maxAllowed < newSize) newSize = maxAllowed;
         }
@@ -197,10 +198,10 @@ class RenderZone {
     }
 
     onDelete() {
-        let text = `${this.zone.strip.id}/${this.zone.id}. zóna törlése?\n(${this.zone.pixelSize} pixel)`;
+        let text = `${this.zone.strip.id}. LED szalagtól\n${this.zone.id}. zóna törlése?\n(${this.zone.pixelSize} pixel)`;
         deleteDialog.show(() => {
             this.deleteBox.onclick = null;
-            showHeader(`${this.zone.strip.id}/${this.zone.id}. zóna törölve`, "rgb(190,30,0)", 3000);
+            showHeader(`${this.zone.strip.id}.-${this.zone.id}. zóna törölve`, "rgb(190,30,0)", 3000);
             this.renderStrip.deleteRenderZone();
             this.htmlBox.remove();
         }, text);

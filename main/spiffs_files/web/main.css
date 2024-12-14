@@ -244,9 +244,17 @@ option:checked {
 .zoneType {
     background-color: transparent;
     color: var(--varColorText);
-    min-width: 10em;
-    border-radius: 0.8em;
-    outline: none;
+    padding: 0 0.2em;
+    border-radius: 0.6em;
+    border-style: none;
+    font-size: 0.8em;
+    outline-width: 0.15em;
+    outline-style: solid;
+    outline-color: var(--varColorMain);
+}
+
+.shaderControls {
+    flex-basis: 100%;
 }
 
 #pageHeader {
