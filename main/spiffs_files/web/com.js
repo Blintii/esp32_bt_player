@@ -20,6 +20,7 @@ class WebSocketHandler {
 
     async handleMessage(event) {
         hideHeader();
+        console.log("Websocket rx:", event.data);
         let binaryBuf = await event.data.arrayBuffer();
         com.rx(new Uint8Array(binaryBuf));
     }
@@ -100,7 +101,30 @@ class MessageHandler {
     }
 
     // SID 2
-    serverBound_shaderSet(stripIndex, zoneIndex) {
-        this.tx(2, [stripIndex, zoneIndex]);
+    serverBound_shaderSet(stripIndex, zoneIndex, shaderType, shaderConfig) {
+        /* SID + stripIndex + zoneIndex + shaderType */
+        let len = 1 + 1 + 1 + 1;
+
+        switch(shaderType) {
+            case SHADER_SINGLE: len += 3*4; break;
+            default: throw new Error(`nincs lekezelve csoro shader: ${shaderType}`);
+        }
+
+        let buf = new ArrayBuffer(len);
+        let dataView = new DataView(buf);
+        dataView.setUint8(0, 2);
+        dataView.setUint8(1, stripIndex);
+        dataView.setUint8(2, zoneIndex);
+        dataView.setUint8(3, shaderType);
+
+        switch(shaderType) {
+            case SHADER_SINGLE:
+                dataView.setFloat32(4, shaderConfig.colorHSL.hue);
+                dataView.setFloat32(8, shaderConfig.colorHSL.sat);
+                dataView.setFloat32(12, shaderConfig.colorHSL.lum);
+                break;
+        }
+
+        this.tx(buf);
     }
 }

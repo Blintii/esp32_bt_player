@@ -59,11 +59,9 @@ class RenderStrip {
         this.rgbOrderTyper.onChanged = newVal => this.onRgbOrderTyperDone(newVal);
         this.rgbOrderTyper.onFinalCheck = newVal => this.onRgbOrderTyperCheck(newVal);
         this.newZoneHidden = true;
-        this.uiControlsBox = htmlBox.getElementsByClassName("uiControls")[0];
-        this.uiZoneNewBox = tmpZoneNewBox.content.cloneNode(true).firstElementChild;
-        this.uiZoneNewBox.onclick = () => this.createRenderZone();
+        this.zoneListBox = htmlBox.getElementsByClassName("stripZoneList")[0];
         this.renderZones = [];
-        this.setStripTitle(this.strip.id + ". LED szalag");
+        this.setStripTitle(`LED szalag ${this.strip.id}`);
     }
 
     setStripTitle(text) {
@@ -80,23 +78,28 @@ class RenderStrip {
         if(this.strip.pixelUsedPos < this.strip.pixelSize) {
             if(this.newZoneHidden) {
                 this.newZoneHidden = false;
-                this.uiControlsBox.appendChild(this.uiZoneNewBox);
+                let builderBox = tmpStripZoneListItem.content.cloneNode(true).firstElementChild;
+                this.zoneNewBuilder = new RenderZoneBuilder(builderBox, this, this.zoneListBox);
             }
         }
         else if(!this.newZoneHidden) {
             this.newZoneHidden = true;
-            this.uiControlsBox.removeChild(this.uiZoneNewBox);
+            this.zoneNewBuilder.cancel();
+            this.zoneNewBuilder = null;
         }
 
         if(0 < this.renderZones.length) {
             let i = 0;
+            let buttonBox;
 
             while(i < this.renderZones.length - 1) {
-                this.renderZones[i].htmlBox.getElementsByClassName("uiZoneDelete")[0].hidden = true;
+                buttonBox = this.renderZones[i].stripZoneListItemBox.getElementsByClassName("zoneDeleteButton")[0];
+                buttonBox.classList.add("buttonDisabled");
                 i++;
             }
 
-            this.renderZones[i].htmlBox.getElementsByClassName("uiZoneDelete")[0].hidden = false;
+            buttonBox = this.renderZones[i].stripZoneListItemBox.getElementsByClassName("zoneDeleteButton")[0];
+            buttonBox.classList.remove("buttonDisabled");
         }
     }
 
@@ -133,14 +136,13 @@ class RenderStrip {
 
     createRenderZone() {
         this.newZoneHidden = true;
-        this.newZonePixelSet = true;
-        this.uiControlsBox.removeChild(this.uiZoneNewBox);
         let zoneHtmlBox = tmpZoneBox.content.cloneNode(true).firstElementChild;
-        this.uiControlsBox.appendChild(zoneHtmlBox);
-        let zone = new RenderZone(this.strip.createZone(), zoneHtmlBox, this);
+        contentContainer.appendChild(zoneHtmlBox);
+        let zone = new RenderZone(this.strip.createZone(), zoneHtmlBox, this.zoneNewBuilder.htmlBox, this);
         this.renderZones.push(zone);
-        zone.syncZoneData();
+        this.zoneNewBuilder = null;
         this.checkCanShowCreate();
+        return zone;
     }
 
     deleteRenderZone() {
@@ -150,24 +152,79 @@ class RenderStrip {
     }
 }
 
-class RenderZone {
-    constructor(zone, htmlBox, renderStrip) {
-        this.zone = zone;
+class RenderZoneBuilder {
+    constructor(htmlBox, renderStrip, zoneListBox) {
         this.htmlBox = htmlBox;
         this.renderStrip = renderStrip;
-        let zoneSizeBox = htmlBox.getElementsByClassName("zoneSizeBox")[0];
+        this.zoneListBox = zoneListBox;
+        this.htmlBox.getElementsByClassName("zoneTitle")[0].textContent = "új zóna";
+        this.zoneListBox.appendChild(this.htmlBox);
+        let zoneSizeBox = this.htmlBox.getElementsByClassName("zoneSizeBox")[0];
         this.zoneSizeTyper = new WriteTyper(zoneSizeBox, regexNumbers, 3);
         this.zoneSizeTyper.onChanged = newVal => this.onSizeTyperDone(newVal);
         this.zoneSizeTyper.onFinalCheck = newVal => this.onSizeTyperCheck(newVal);
-        this.deleteBox = htmlBox.getElementsByClassName("uiZoneDelete")[0];
+    }
+
+    onSizeTyperCheck(newVal) {
+        if(newVal.length == 0) newVal = "0";
+
+        let newSize = parseInt(newVal, 10);
+
+        if(0 < newSize) {
+            let strip = this.renderStrip.strip;
+            let maxAllowed = strip.pixelSize - strip.pixelUsedPos;
+
+            if(maxAllowed < newSize) newSize = maxAllowed;
+        }
+        else newSize = 0;
+
+        return newSize;
+    }
+
+    onSizeTyperDone(newVal) {
+        let renderZone = this.renderStrip.createRenderZone();
+        renderZone.onSizeTyperDone(newVal);
+        renderZone.syncZoneData();
+    }
+
+    cancel() {
+        this.htmlBox.remove();
+    }
+}
+
+class RenderZone {
+    constructor(zone, htmlBox, stripZoneListItemBox, renderStrip) {
+        this.zone = zone;
+        this.htmlBox = htmlBox;
+        this.stripZoneListItemBox = stripZoneListItemBox;
+        this.renderStrip = renderStrip;
+        let zoneSizeBox = stripZoneListItemBox.getElementsByClassName("zoneSizeBox")[0];
+        this.zoneSizeTyper = new WriteTyper(zoneSizeBox, regexNumbers, 3);
+        this.zoneSizeTyper.onChanged = newVal => this.onSizeTyperDone(newVal);
+        this.zoneSizeTyper.onFinalCheck = newVal => this.onSizeTyperCheck(newVal);
+        this.deleteBox = stripZoneListItemBox.getElementsByClassName("zoneDeleteButton")[0];
         this.deleteBox.onclick = () => this.onDelete();
-        this.setZoneTitle(`${this.zone.id}. zóna`);
+        this.setZoneTitle(`zóna ${this.zone.id}`);
+        this.htmlBox.getElementsByClassName("zoneTitleParentRef")[0].textContent = `LED szalag ${this.renderStrip.strip.id}`;
         this.zoneType = htmlBox.getElementsByClassName("zoneType")[0];
+        // TODO zoneType handling
         this.zoneType.onchange = () => console.log(this.zoneType.value);
+        let callback = throttle(() => {
+            this.shaderConfig = {};
+            this.shaderConfig.colorHSL = {};
+            this.shaderConfig.colorHSL.hue = this.colorPicker.hue/Math.PI*180;
+            this.shaderConfig.colorHSL.sat = this.colorPicker.sat;
+            this.shaderConfig.colorHSL.lum = this.colorPicker.lum;
+            com.serverBound_shaderSet(this.zone.strip.id, this.zone.id, SHADER_SINGLE, this.shaderConfig);
+        });
+        this.colorPicker = createColorPicker(this.htmlBox.getElementsByClassName("shaderControls")[0], callback);
+        callback();
     }
 
     setZoneTitle(text) {
-        const zoneTitle = this.htmlBox.getElementsByClassName("zoneTitle")[0];
+        let zoneTitle = this.htmlBox.getElementsByClassName("zoneTitle")[0];
+        zoneTitle.textContent = text;
+        zoneTitle = this.stripZoneListItemBox.getElementsByClassName("zoneTitle")[0];
         zoneTitle.textContent = text;
     }
 
@@ -180,7 +237,7 @@ class RenderZone {
 
         let newSize = parseInt(newVal, 10);
 
-        if(0 < newSize) {
+        if(1 < newSize) {
             let strip = this.zone.strip;
             let maxAllowed = strip.pixelSize - strip.pixelUsedPos + this.zone.pixelSize;
 
@@ -198,12 +255,15 @@ class RenderZone {
     }
 
     onDelete() {
-        let text = `${this.zone.strip.id}. LED szalagtól\n${this.zone.id}. zóna törlése?\n(${this.zone.pixelSize} pixel)`;
+        if(this.deleteBox.classList.contains("buttonDisabled")) return;
+
+        let text = `LED szalag ${this.zone.strip.id} zónáiból\nzóna ${this.zone.id} törlése?\n(${this.zone.pixelSize} pixel)`;
         deleteDialog.show(() => {
             this.deleteBox.onclick = null;
-            showHeader(`${this.zone.strip.id}.-${this.zone.id}. zóna törölve`, "rgb(190,30,0)", 3000);
+            showHeader(`zóna ${this.zone.strip.id}-${this.zone.id} törölve`, "rgb(190,30,0)", 3000);
             this.renderStrip.deleteRenderZone();
             this.htmlBox.remove();
+            this.stripZoneListItemBox.remove();
         }, text);
     }
 }
@@ -213,7 +273,7 @@ class WriteTyper {
         this.parentBox = parentBox;
         this.checkPattern = checkPattern;
         this.maxCharLen = maxCharLen;
-        this.textBox = parentBox.getElementsByClassName("uiWriteTyperText")[0];
+        this.textBox = parentBox.getElementsByClassName("typerText")[0];
         this.textBox.onblur = () => this.endType();
         this.textBox.onpaste = (event) => event.preventDefault();
         this.textBox.oninput = (event) => {
@@ -224,7 +284,7 @@ class WriteTyper {
             }
             else this.setCaretPosition();
         };
-        this.buttonSet = parentBox.getElementsByClassName("uiWriteTyperSet")[0];
+        this.buttonSet = parentBox.getElementsByClassName("typerSet")[0];
         this.parentBox.onmousedown = (event) => {
             if(this.typing) event.preventDefault();
         };
@@ -279,7 +339,7 @@ class DeleteDialog {
     constructor()
     {
         this.htmlBox = document.getElementById("deleteDialog");
-        this.deleteButton = document.getElementById("deleteButtonConfirm");
+        this.deleteButton = document.getElementById("deleteDialogConfirm");
         this.htmlBox.onclick = (event) => this.click(event);
     }
 
@@ -288,7 +348,7 @@ class DeleteDialog {
         this.htmlBox.showModal();
         this.htmlBox.focus();
         this.htmlBox.classList.add("openedDialog");
-        let textBox = document.getElementById("deleteText");
+        let textBox = document.getElementById("deleteDialogText");
         textBox.innerText = text;
     }
 
